@@ -1,27 +1,29 @@
-import { config } from './config';
-import { IQueueConsumer } from './core/entities/queue-consumer.interface';
-import { QueueFactory } from './queues/queue-factory';
+import { ProviderService } from './core/services/provider.service';
+import pinoLogger from './logger';
 
 async function bootstrap() {
-    const consumers: IQueueConsumer[] = QueueFactory.createAll(
-        config.queue.queues,
-    );
-
-    for (const consumer of consumers) {
-        await consumer.connect();
-
-        await consumer.subscribe(async (message) => {
-            console.log(
-                `[${consumer.constructor.name}] Message reçu :`,
-                message,
-            );
-
-            // Ici on envoie vers le service métier
-            // ex: TemplateService → ProviderService
-        });
+    try {
+        ProviderService.init();
+    } catch (error: any) {
+        pinoLogger.error('Error during Messenger initialization:', error);
+        process.exit(1);
     }
 
-    console.log('🚀 Messenger started and listening to all queues.');
+    try {
+        pinoLogger.info('[BOOT] Initialisation des providers...');
+
+        await ProviderService.init();
+        pinoLogger.info('[BOOT] Providers initialisés avec succès ✅');
+    } catch (err: any) {
+        pinoLogger.error(err);
+        pinoLogger.error(
+            "Erreur lors de l'initialisation des providers. Arrêt de Messenger.",
+        );
+
+        process.exit(1);
+    }
+
+    pinoLogger.info('🚀 Messenger started.');
 }
 
 bootstrap();

@@ -1,6 +1,6 @@
 import { TemplateConfig } from './types';
 
-export const templates: TemplateConfig[] = [
+export const templatesConfig: TemplateConfig[] = [
     {
         templateId: 'mqr_user_welcome',
         providerId: 'gmail',

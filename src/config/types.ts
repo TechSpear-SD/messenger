@@ -1,6 +1,5 @@
 export type TemplateType = 'html' | 'text';
-export type ProviderName = 'sendgrid' | 'twilio' | 'gmail' | 'mock';
-export type ProviderType = 'email' | 'sms' | 'push';
+export type SupportedChannel = 'email' | 'sms' | 'push' | 'webhook';
 export type QueueType = 'bullmq';
 
 export interface QueueConfig {
@@ -48,9 +47,9 @@ export type TemplateConfig = {
 };
 
 export type ProviderConfig = {
-    providerId: ProviderName;
+    providerId: string;
     name: string;
-    type: ProviderType;
+    types: SupportedChannel[];
 
     description?: string;
     options?: Record<string, any>;

@@ -8,7 +8,9 @@ export * from './providers';
 import dotenv from 'dotenv';
 import { providersConfig } from './providers';
 import { workersConfig } from './workers';
-import { templateProviderMap } from './templates';
+import { scenariosConfig } from './scenarios';
+import { queuesConfig } from './queues';
+import { templatesConfig } from './templates';
 
 dotenv.config();
 
@@ -19,5 +21,7 @@ export const config = {
 
     providers: providersConfig,
     workers: workersConfig,
-    templates: templateProviderMap,
+    scenarios: scenariosConfig,
+    queues: queuesConfig,
+    templates: templatesConfig,
 };

@@ -2,9 +2,9 @@ import { ProviderConfig } from './types';
 
 export const providersConfig: ProviderConfig[] = [
     {
-        providerId: 'mock',
+        providerId: 'mock-multi-provider',
         name: 'mock',
-        type: 'email',
+        types: ['email'],
         description: 'Mock provider for testing',
     },
 ];

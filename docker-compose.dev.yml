@@ -1,0 +1,27 @@
+services:
+  # --- Redis instance used by BullMQ ---
+  redis:
+    image: redis:7-alpine
+    container_name: redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+
+  # --- Optional: Redis UI (for visualizing queues) ---
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight-dev
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
+    environment:
+      - RI_APP_PORT=5540
+    # You can access it at http://localhost:5540
+
+volumes:
+  redis-data:

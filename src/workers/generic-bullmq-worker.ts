@@ -7,6 +7,7 @@ import pinoLogger from '../logger';
 import { WorkerConfig } from '../config';
 import { getRedisConnection } from '../core/queues/bull-mq-connection';
 import IORedis from 'ioredis';
+import { getContext, runWithContext } from '../core/context';
 
 export class GenericBullWorker implements Worker {
     readonly id: string;
@@ -21,9 +22,6 @@ export class GenericBullWorker implements Worker {
         this.id = id;
     }
 
-    /**
-     * Establish Redis connection & load queue configuration
-     */
     async connect(): Promise<void> {
         const queueConfig = await QueueService.getQueueById(
             this.workerConfig.queueId,
@@ -39,23 +37,28 @@ export class GenericBullWorker implements Worker {
 
         pinoLogger.info(
             { workerId: this.workerConfig.workerId, queue: this.queueTopic },
-            '🔌 Redis connection established for worker',
+            `Worker ${this.workerConfig.workerId} established Redis connection`,
         );
     }
 
-    /**
-     * Subscribe to the queue and start processing messages
-     */
     async subscribe(): Promise<void> {
         if (!this.connection || !this.queueTopic) {
             throw new Error('Worker not connected. Call connect() first.');
         }
 
+        const connectionOptions = {
+            host: (this.connection as any).options.host,
+            port: (this.connection as any).options.port,
+            password: (this.connection as any).options.password,
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+        };
+
         this.worker = new BullWorker(
             this.queueTopic,
             async (job) => await this.handleMessage(job.data),
             {
-                connection: this.connection,
+                connection: connectionOptions,
                 concurrency: this.workerConfig.concurrency ?? 1,
             },
         );
@@ -64,96 +67,80 @@ export class GenericBullWorker implements Worker {
 
         pinoLogger.info(
             { worker: this.workerConfig.workerId, queue: this.queueTopic },
-            `👷 Subscribed to queue and listening for jobs`,
+            `Subscribed to queue and listening for jobs`,
         );
     }
 
-    /**
-     * Gracefully close the worker
-     */
     async disconnect(): Promise<void> {
         await this.worker?.close();
+        await this.connection?.quit();
         pinoLogger.info(
             { worker: this.workerConfig.workerId },
-            '🔌 Worker disconnected from Redis',
+            'Worker disconnected from Redis',
         );
     }
 
-    /**
-     * Attach BullMQ event handlers
-     */
     private registerWorkerEvents(worker: BullWorker): void {
         worker.on('completed', (job) =>
             pinoLogger.info(
                 { jobId: job.id, worker: this.workerConfig.workerId },
-                '✅ Job completed',
+                'Job completed',
             ),
         );
 
         worker.on('failed', (job, err) =>
             pinoLogger.error(
                 { jobId: job?.id, worker: this.workerConfig.workerId, err },
-                '❌ Job failed',
+                'Job failed',
             ),
         );
 
         worker.on('error', (err) =>
             pinoLogger.error(
                 { worker: this.workerConfig.workerId, err },
-                '💥 Worker error',
-            ),
-        );
-
-        worker.on('stalled', (job) =>
-            pinoLogger.warn(
-                { jobId: job, worker: this.workerConfig.workerId },
-                '⚠️ Job stalled',
+                'Worker error',
             ),
         );
 
         worker.on('drained', () =>
             pinoLogger.info(
                 { worker: this.workerConfig.workerId },
-                '🧹 All jobs processed, queue drained',
-            ),
-        );
-
-        worker.on('paused', () =>
-            pinoLogger.info(
-                { worker: this.workerConfig.workerId },
-                '⏸️ Worker paused',
-            ),
-        );
-
-        worker.on('resumed', () =>
-            pinoLogger.info(
-                { worker: this.workerConfig.workerId },
-                '▶️ Worker resumed',
+                'All jobs processed, queue drained',
             ),
         );
     }
 
-    /**
-     * Validate message structure
-     */
     private isValidQueueMessage(msg: any): msg is QueueMessage {
-        return (
-            typeof msg?.templateId === 'string' &&
-            typeof msg?.application === 'string' &&
-            typeof msg?.businessData === 'object' &&
-            Array.isArray(msg?.to)
-        );
+        return typeof msg?.applicationId === 'string' && Array.isArray(msg?.to);
     }
 
-    /**
-     * Handle a single queue message
-     */
-    private async handleMessage(message: unknown): Promise<void> {
-        if (!this.isValidQueueMessage(message)) {
-            pinoLogger.warn({ message }, '⚠️ Invalid message format, skipped');
-            return;
+    private async handleMessage(message: QueueMessage): Promise<void> {
+        if (!message.meta) {
+            message.meta = {};
         }
 
-        await ScenarioService.execute(message);
+        if (!message.meta.correlationId) {
+            message.meta.correlationId = crypto.randomUUID();
+            pinoLogger.debug(
+                { correlationId: message.meta.correlationId },
+                'Generated new correlationId for message',
+            );
+        }
+
+        const correlationId = message.meta.correlationId;
+
+        await runWithContext(correlationId, async () => {
+            const ctx = getContext();
+            const logger = ctx?.logger ?? pinoLogger;
+
+            logger.info({ message }, 'New message received');
+
+            if (!this.isValidQueueMessage(message)) {
+                logger.warn({ message }, 'Invalid message format, skipped');
+                return;
+            }
+
+            await ScenarioService.execute(message);
+        });
     }
 }

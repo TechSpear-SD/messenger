@@ -1,6 +1,7 @@
 import { providersConfig, SupportedChannel } from '../../config';
 import { Provider } from '../../providers/email/provider.interface';
 import { ProviderFactory } from '../../providers/provider-factory';
+import pinoLogger from '../../logger';
 
 export class ProviderService {
     private static providers = new Map<string, Provider>();
@@ -18,11 +19,14 @@ export class ProviderService {
 
             await this.validateSupportedChannels(instance, config.types);
 
+            pinoLogger.info(
+                `[BOOT] Provider ${config.providerId} initialized with supported channels: ${instance.supportedChannels}`,
+            );
             this.providers.set(config.providerId, instance);
         }
     }
 
-    static get(providerId: string): Provider {
+    static getById(providerId: string): Provider {
         const provider = this.providers.get(providerId);
         if (!provider) throw new Error(`Provider ${providerId} not found`);
         return provider;
@@ -38,11 +42,7 @@ export class ProviderService {
 
         if (invalid.length > 0) {
             throw new Error(
-                `Provider "${providerInstance.constructor.name}" does not support channels: ${invalid.join(
-                    ', ',
-                )}. Supported channels are: ${providerInstance.supportedChannels.join(
-                    ', ',
-                )}`,
+                `Provider "${providerInstance.constructor.name}" does not support channels: ${invalid}. Supported channels are: ${providerInstance.supportedChannels}`,
             );
         }
     }

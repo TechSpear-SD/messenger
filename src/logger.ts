@@ -2,7 +2,9 @@ import fs from 'fs';
 import { join, resolve } from 'path';
 import { default as Pino } from 'pino';
 
-const logDirectory = join(resolve(`${__dirname}/../../`), 'logs');
+// const logDirectory = join(resolve(`${__dirname}/../../`), 'logs');
+const logDirectory = join(resolve('logs'));
+console.log('Log directory:', logDirectory);
 
 if (!fs.existsSync(logDirectory)) {
     fs.mkdirSync(logDirectory);
@@ -16,7 +18,7 @@ const transport = Pino.transport({
             target: 'pino/file',
             options: { destination: logFile },
         },
-        ...(process.env.NODE_ENV !== 'production'
+        ...(process.env.NODE_ENV !== 'prd'
             ? [
                   {
                       ...{

@@ -1,11 +1,12 @@
 import { SupportedChannel } from '../../config';
-import { QueueMessage } from '../../core/entities/queue-message';
+import { ProviderExecutionContext } from '../../core/entities/provider-execution-ctx';
 
 export interface Provider {
     readonly id: string;
     readonly supportedChannels: SupportedChannel[];
+    readonly defaultFrom?: string;
 
-    send(message: QueueMessage): Promise<ProviderResult>;
+    send(message: ProviderExecutionContext): Promise<ProviderResult>;
 
     healthCheck?(): Promise<boolean>;
 }

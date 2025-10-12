@@ -39,9 +39,9 @@ export interface ScenarioConfig {
 export type TemplateConfig = {
     templateId: string;
     providerId: string;
-    path: string;
+    path: string; // Directory path under templates/
 
-    dataTransformFiles?: string[];
+    dataTransformFiles?: string[]; // Optional data transform file names
     description?: string;
     validationSchema?: Record<string, any>;
 };

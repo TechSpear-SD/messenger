@@ -2,9 +2,9 @@ import { QueueConfig } from './types';
 
 export const queuesConfig: QueueConfig[] = [
     {
-        queueId: 'tsd-messenger',
-        topic: 'tsd.messenger',
-        redisUrl: 'redis://localhost:6379/0',
+        queueId: 'tsd-messenger-queue',
+        topic: process.env.QUEUE_TOPIC || 'tsd.messenger',
+        redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
         type: 'bullmq',
     },
 ];

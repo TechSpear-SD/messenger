@@ -1,0 +1,29 @@
+<table style="width:100%; max-width:600px; margin:0 auto; font-family:Arial, sans-serif; color:#333;">
+  <tr>
+    <td style="padding:20px; text-align:center;">
+      <h1 style="color:#2c3e50;">Bienvenue sur {{applicationName}} 👋</h1>
+      {{#if userName}}
+        <p style="font-size:16px;">Bonjour {{userName}},</p>
+      {{else}}
+        <p style="font-size:16px;">Bonjour,</p>
+      {{/if}}
+      <p style="font-size:15px; line-height:1.6;">
+        Merci de vous être inscrit{{#if userName}}, {{userName}}{{/if}} !  
+        Nous sommes ravis de vous accueillir sur {{applicationName}}.
+      </p>
+      <p style="font-size:15px; line-height:1.6;">
+        Vous pouvez dès maintenant vous connecter et commencer à explorer tout ce que {{applicationName}} a à offrir.
+      </p>
+
+      <a href="{{loginUrl}}" 
+         style="display:inline-block; margin-top:20px; padding:12px 24px; background-color:#4CAF50; color:white; text-decoration:none; border-radius:6px;">
+         Se connecter
+      </a>
+
+      <p style="font-size:13px; color:#888; margin-top:30px;">
+        Si vous avez des questions, n’hésitez pas à nous contacter à 
+        <a href="mailto:{{supportEmail}}" style="color:#4CAF50;">{{supportEmail}}</a>.
+      </p>
+    </td>
+  </tr>
+</table>

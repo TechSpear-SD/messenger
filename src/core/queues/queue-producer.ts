@@ -10,7 +10,7 @@ export class QueueProducer {
         queueId?: string,
     ) {
         const queueConfig = await QueueService.getQueueById(
-            queueId || 'tsd-messenger-queue',
+            queueId || 'messenger-queue',
         );
 
         if (!queueConfig) {

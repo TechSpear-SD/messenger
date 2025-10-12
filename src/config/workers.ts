@@ -4,6 +4,6 @@ export const workersConfig: WorkerConfig[] = [
     {
         workerId: 'generic-bull-worker',
         options: {},
-        queueId: 'tsd-messenger-queue',
+        queueId: 'messenger-queue',
     },
 ];

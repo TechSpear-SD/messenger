@@ -21,19 +21,17 @@ export class ScenarioService {
     static async execute(message: QueueMessage): Promise<void> {
         const ctx = getContext();
         const log: Logger = ctx?.logger || pinoLogger;
-        
+
         log.info(
             { appId: message.applicationId, scenarioId: message.scenarioId },
             'Executing scenario for incoming message',
         );
 
-        // 1️⃣ Find the application & its scenarios
         const app = await ApplicationService.getById(message.applicationId);
         if (!app) {
             throw new Error(`Unknown application: ${message.applicationId}`);
         }
 
-        // 2️⃣ Get scenario containing the target template
         const scenario = await ScenarioService.getById(message.scenarioId);
         if (!scenario) {
             throw new Error(

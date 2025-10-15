@@ -1,0 +1,40 @@
+import { bus } from './core/bus';
+import { LoggerPlugin } from './core/plugins/logger-plugin';
+import { PluginManager } from './core/plugins/plugin-manager';
+import { ProviderService } from './core/services/provider.service';
+import { WorkerService } from './core/services/worker.service';
+import pinoLogger from './logger';
+
+export class MessengerApp {
+    private static instance: MessengerApp;
+    private pluginManager: PluginManager;
+
+    public static getInstance(): MessengerApp {
+        if (!MessengerApp.instance) {
+            MessengerApp.instance = new MessengerApp();
+        }
+        return MessengerApp.instance;
+    }
+
+    private constructor() {
+        this.pluginManager = new PluginManager(bus);
+        this.registerPlugins();
+    }
+
+    private registerPlugins() {
+        this.pluginManager.register(LoggerPlugin);
+    }
+
+    async init() {
+        await ProviderService.init();
+        await WorkerService.init();
+    }
+
+    async start() {
+        pinoLogger.info('[BOOT] Messenger up and running.');
+    }
+
+    async shutdown() {
+        await WorkerService.disconnectAll();
+    }
+}

@@ -1,4 +1,4 @@
-import { ProviderService } from './core/services/provider.service';
+import { MessengerApp } from './app';
 import { WorkerService } from './core/services/worker.service';
 import pinoLogger from './logger';
 
@@ -7,34 +7,22 @@ process.on('SIGINT', async () => {
     WorkerService.disconnectAll();
     process.exit(0);
 });
-
 async function bootstrap() {
-    try {
-        pinoLogger.info('[BOOT] Initialisation des providers...');
-        await ProviderService.init();
-        pinoLogger.info('[BOOT] Providers initialisés avec succès');
-    } catch (err: any) {
-        pinoLogger.error(
-            { err },
-            `[BOOT] Erreur lors de l'initialisation des providers. Arrêt de Messenger.`,
-        );
+    const app = MessengerApp.getInstance();
 
+    try {
+        await app.init();
+        await app.start();
+    } catch (err) {
+        pinoLogger.fatal(err, 'Critical error during startup. Exiting...');
         process.exit(1);
     }
 
-    try {
-        pinoLogger.info('[BOOT] Initialisation des workers...');
-        await WorkerService.init();
-        pinoLogger.info('[BOOT] Workers initialisés avec succès');
-    } catch (err: any) {
-        pinoLogger.error(
-            { err },
-            `[BOOT] Erreur lors de l'initialisation des workers. Arrêt de Messenger.`,
-        );
-        process.exit(1);
-    }
-
-    pinoLogger.info('[BOOT] Messenger up and running.');
+    process.on('SIGINT', async () => {
+        pinoLogger.warn('Shutting down gracefully...');
+        await app.shutdown();
+        process.exit(0);
+    });
 }
 
 bootstrap();

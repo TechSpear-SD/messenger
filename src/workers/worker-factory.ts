@@ -1,10 +1,10 @@
 import { WorkerConfig } from '../config';
+import { BaseWorker } from './base-worker';
 import { GenericBullWorker } from './generic-bullmq-worker';
-import { Worker } from './worker.interface';
 
 export class WorkerFactory {
-    static create(config: WorkerConfig): Worker {
-        const workers: Worker[] = [new GenericBullWorker(config)];
+    static create(config: WorkerConfig): BaseWorker {
+        const workers: BaseWorker[] = [new GenericBullWorker(config)];
         const found = workers.find((p) => p.id === config.workerId);
 
         if (!found) {

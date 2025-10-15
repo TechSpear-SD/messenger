@@ -5,6 +5,8 @@ import { TemplateService } from './template.service';
 import { Logger } from 'pino';
 import { getContext } from '../context';
 import pinoLogger from '../../logger';
+import { bus } from '../bus';
+import { EventNames } from '../bus/event-names';
 
 export class ScenarioService {
     static async getById(scenarioId: string) {
@@ -19,6 +21,11 @@ export class ScenarioService {
      * Main entry point for executing a queued message
      */
     static async execute(message: QueueMessage): Promise<void> {
+        bus.emit(EventNames.ScenarioBeforeExecute, {
+            scenarioId: message.scenarioId,
+            data: message,
+        });
+
         const ctx = getContext();
         const log: Logger = ctx?.logger || pinoLogger;
 
@@ -60,5 +67,9 @@ export class ScenarioService {
                 );
             }
         }
+        bus.emit(EventNames.ScenarioAfterExecute, {
+            scenarioId: message.scenarioId,
+            result: message,
+        });
     }
 }

@@ -4,7 +4,7 @@ export interface Worker {
     readonly id: string;
     readonly workerConfig: WorkerConfig;
 
-    connect(): Promise<void>;
-    subscribe(): Promise<void>;
-    disconnect(): Promise<void>;
+    handleConnect(): Promise<void>;
+    handleSubscribe(): Promise<void>;
+    handleDisconnect(): Promise<void>;
 }

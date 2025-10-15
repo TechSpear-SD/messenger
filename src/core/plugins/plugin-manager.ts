@@ -1,4 +1,5 @@
-import { EventBus, EventPayloads } from '../bus/event-bus';
+import { EventBus } from '../bus/event-bus';
+import { EventPayloads } from '../bus/event-payloads';
 import { Plugin } from './plugin';
 
 export class PluginManager {

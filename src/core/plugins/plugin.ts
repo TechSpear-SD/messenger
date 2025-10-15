@@ -1,12 +1,13 @@
 import pino from 'pino';
 import pinoLogger from '../../logger';
-import { EventBus, EventPayloads } from '../bus/event-bus';
+import { EventBus } from '../bus/event-bus';
 import { getContext } from '../context';
+import { EventPayloads } from '../bus/event-payloads';
 
 export abstract class Plugin {
     constructor(protected readonly bus: EventBus<EventPayloads>) {}
 
-    protected getLogger(): pino.Logger {
+    protected getContextLogger(): pino.Logger {
         return getContext()?.logger || pinoLogger;
     }
 

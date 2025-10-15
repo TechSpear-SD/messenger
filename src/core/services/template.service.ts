@@ -1,6 +1,8 @@
 import { config, TemplateConfig } from '../../config';
 import pinoLogger from '../../logger';
 import { DataTransform } from '../../transforms/transform.type';
+import { bus } from '../bus';
+import { EventNames } from '../bus/event-names';
 import { getContext } from '../context';
 import { ProviderExecutionContext } from '../entities/provider-execution-ctx';
 import { TemplateExecutionContext } from '../entities/template-execution-ctx';
@@ -19,17 +21,30 @@ export class TemplateService {
         const template = await TemplateService.getById(ctx.templateId);
         if (!template) throw new Error(`Template not found: ${ctx.templateId}`);
 
-        logger.info({ templateId: ctx.templateId }, 'Executing template');
+        bus.emit(EventNames.TemplateBeforeRender, {
+            templateId: ctx.templateId,
+            context: ctx,
+        });
 
         let transformedData = await this.applyTemplateTransform(
             template,
             ctx.businessData,
         );
 
-        const { subject, body } = await TemplateRenderer.render(
+        const renderedTemplate = await TemplateRenderer.render(
             template.path,
             transformedData,
         );
+
+        const subject =
+            renderedTemplate.subject || ctx.bodyOverride || 'Empty body';
+        const body = renderedTemplate.body || ctx.bodyOverride || 'Empty body';
+
+        bus.emit(EventNames.TemplateAfterRender, {
+            templateId: ctx.templateId,
+            rendered: { subject, body },
+            context: ctx,
+        });
 
         const provider = ProviderService.getById(template.providerId);
         if (!provider) {
@@ -41,8 +56,8 @@ export class TemplateService {
             to: ctx.to,
             cc: ctx.cc,
             bcc: ctx.bcc,
-            body: body || ctx.bodyOverride || 'Empty body',
-            subject: subject || ctx.subject || 'Undefined subject',
+            body: body,
+            subject: subject,
             meta: ctx.meta,
             tracking: ctx.tracking,
         };

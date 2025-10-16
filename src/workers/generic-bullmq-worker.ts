@@ -5,6 +5,7 @@ import { QueueService } from '../core/services/queue.service';
 import { ScenarioService } from '../core/services/scenario.service';
 import { getRedisConnection } from '../core/queues/bull-mq-connection';
 import { BaseWorker } from './base-worker';
+import pinoLogger from '../logger';
 
 export class GenericBullWorker extends BaseWorker {
     readonly id: string;
@@ -20,42 +21,58 @@ export class GenericBullWorker extends BaseWorker {
         this.id = id;
     }
 
-    async handleConnect(): Promise<void> {
+    protected async handleConnect(): Promise<void> {
         const queueConfig = await QueueService.getQueueById(
             this.workerConfig.queueId,
         );
-        if (!queueConfig)
+
+        if (!queueConfig) {
             throw new Error(
                 `Queue with ID ${this.workerConfig.queueId} not found`,
             );
+        }
+        this.queueTopic = queueConfig.topic;
 
         const connection = getRedisConnection(queueConfig.redisUrl);
-
-        if (connection.status !== 'ready') {
-            await new Promise<void>((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error('Redis connection timeout'));
-                }, 5000);
-
-                connection.once('ready', () => {
-                    clearTimeout(timeout);
-                    resolve();
-                });
-                connection.once('error', (err) => {
-                    clearTimeout(timeout);
-                    reject(err);
-                });
-            });
-        }
-
         this.connection = connection;
-        this.queueTopic = queueConfig.topic;
+
+        this.connection.on('ready', async () => {
+            pinoLogger.info(
+                this.workerConfig,
+                `[GenericBullWorker] Redis connection ready`,
+            );
+            await this.subscribe();
+        });
+
+        this.connection.on('end', async () => {
+            pinoLogger.warn(
+                this.workerConfig,
+                `[GenericBullWorker] Redis connection lost`,
+            );
+            await this.teardownWorker();
+        });
+
+        this.connection.on('error', (err) => {
+            pinoLogger.error(err, `[GenericBullWorker] Redis error`);
+        });
+
+        if (this.connection.status === 'ready') {
+            await this.subscribe();
+        } else {
+            pinoLogger.info(
+                this.workerConfig,
+                `[GenericBullWorker] Waiting for Redis connection...`,
+            );
+        }
     }
 
-    async handleSubscribe(): Promise<void> {
-        if (!this.connection || !this.queueTopic) {
-            throw new Error('Worker not connected. Call connect() first.');
-        }
+    protected async handleSubscribe(): Promise<void> {
+        if (this.worker || !this.connection || !this.queueTopic) return;
+
+        pinoLogger.info(
+            this.workerConfig,
+            `[GenericBullWorker] Initializing BullMQ worker for queue: ${this.queueTopic}`,
+        );
 
         const connectionOptions = {
             host: (this.connection as any).options.host,
@@ -73,12 +90,36 @@ export class GenericBullWorker extends BaseWorker {
                 concurrency: this.workerConfig.concurrency ?? 1,
             },
         );
+
+        this.worker.on('failed', (job, err) => {
+            pinoLogger.error(
+                { ...err, ...this.workerConfig },
+                `[GenericBullWorker] Job failed`,
+            );
+        });
+
+        this.worker.on('completed', (job) => {
+            pinoLogger.info(
+                this.workerConfig,
+                `[GenericBullWorker] Job completed: ${job.id}`,
+            );
+        });
     }
 
-    async handleDisconnect(): Promise<void> {
-        if (this.worker) {
-            await this.worker.close();
-        }
+    protected async teardownWorker(): Promise<void> {
+        if (!this.worker) return;
+        pinoLogger.info(
+            this.workerConfig,
+            '[GenericBullWorker] Closing BullMQ worker',
+        );
+        await this.worker.close();
+        this.worker = undefined;
+    }
+
+    protected async handleDisconnect(): Promise<void> {
+        await this.teardownWorker();
+        await this.connection?.quit();
+        this.connection = undefined;
     }
 
     protected async processMessage(message: any): Promise<void> {

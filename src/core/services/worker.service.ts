@@ -17,7 +17,6 @@ export class WorkerService {
         for (const config of workersConfig) {
             const instance: BaseWorker = WorkerFactory.create(config);
             await instance.connect();
-            await instance.subscribe();
 
             this.workers.set(config.workerId, instance);
         }

@@ -1,12 +1,6 @@
 import { MessengerApp } from './app';
-import { WorkerService } from './core/services/worker.service';
 import pinoLogger from './logger';
 
-process.on('SIGINT', async () => {
-    pinoLogger.warn('Shutting down gracefully...');
-    WorkerService.disconnectAll();
-    process.exit(0);
-});
 async function bootstrap() {
     const app = MessengerApp.getInstance();
 

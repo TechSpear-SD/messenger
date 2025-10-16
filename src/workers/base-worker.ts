@@ -30,7 +30,7 @@ export abstract class BaseWorker {
         const correlationId = message.meta.correlationId;
 
         // Run the message processing promise chain within the context of the correlation ID
-        await runWithContext(correlationId, async () => {
+        await runWithContext({ correlationId }, async () => {
             const ctx = getContext();
             const logger = ctx?.logger ?? pinoLogger;
 
@@ -46,6 +46,7 @@ export abstract class BaseWorker {
         bus.emit(EventNames.WorkerMessageProcessed, {
             workerId: this.id,
             durationMs: duration,
+            correlationId,
         });
     }
 
@@ -57,7 +58,7 @@ export abstract class BaseWorker {
         });
     }
 
-    async subscribe(): Promise<void> {
+    protected async subscribe(): Promise<void> {
         await this.handleSubscribe();
         bus.emit(EventNames.WorkerSubscribed, {
             workerConfig: this.workerConfig,

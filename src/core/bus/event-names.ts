@@ -17,7 +17,7 @@ export enum EventNames {
 
     ProviderBeforeSend = 'provider.beforeSend',
     ProviderAfterSend = 'provider.afterSend',
-    ProviderSendError = 'provider.sendError',
+    ProviderError = 'provider.error',
 
     SystemError = 'system.error',
 }

@@ -1,10 +1,8 @@
 import { QueueMessage } from '../entities/queue-message';
 import { ApplicationService } from './application.service';
-import { config } from '../../config';
+import { config, scenariosConfig } from '../../config';
 import { TemplateService } from './template.service';
-import { Logger } from 'pino';
-import { getContext } from '../context';
-import pinoLogger from '../../logger';
+import { contextLogger } from '../context';
 import { bus } from '../bus';
 import { EventNames } from '../bus/event-names';
 
@@ -26,13 +24,10 @@ export class ScenarioService {
             data: message,
         });
 
-        const ctx = getContext();
-        const log: Logger = ctx?.logger || pinoLogger;
-
-        log.info(
-            { appId: message.applicationId, scenarioId: message.scenarioId },
-            'Executing scenario for incoming message',
-        );
+        contextLogger.info('Executing scenario for incoming message', {
+            appId: message.applicationId,
+            scenarioId: message.scenarioId,
+        });
 
         const app = await ApplicationService.getById(message.applicationId);
         if (!app) {
@@ -61,10 +56,11 @@ export class ScenarioService {
                     tracking: message.tracking,
                 });
             } catch (err) {
-                log.error(
-                    { err, templateId: template },
-                    'Template execution failed',
-                );
+                contextLogger.error('Template execution failed for scenario ', {
+                    err,
+                    templateId: template,
+                    scenarioId: scenario.scenarioId,
+                });
             }
         }
         bus.emit(EventNames.ScenarioAfterExecute, {

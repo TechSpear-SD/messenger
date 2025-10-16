@@ -14,6 +14,14 @@ export type EventPayloads = {
     [EventNames.ScenarioBeforeExecute]: { scenarioId: string; data: any };
     [EventNames.ScenarioAfterExecute]: { scenarioId: string; result: any };
 
+    [EventNames.TemplateBeforeExecute]: { templateId: string; data: any };
+    [EventNames.TemplateAfterExecute]: { templateId: string; result: any };
+    [EventNames.TemplateBeforeTransform]: { templateId: string; data: any };
+    [EventNames.TemplateAfterTransform]: {
+        templateId: string;
+        transformedData: any;
+    };
+    [EventNames.TemplateError]: { templateId: string; error: Error };
     [EventNames.TemplateBeforeRender]: { templateId: string; context: any };
     [EventNames.TemplateAfterRender]: {
         templateId: string;
@@ -22,6 +30,8 @@ export type EventPayloads = {
     };
     [EventNames.TemplateRenderError]: { templateId: string; error: Error };
 
+    [EventNames.ProviderSendStart]: { providerId: string; payload: any };
+    [EventNames.ProviderSendEnd]: { providerId: string; results: any[] };
     [EventNames.ProviderBeforeSend]: { providerId: string; payload: any };
     [EventNames.ProviderAfterSend]: { providerId: string; response: any };
     [EventNames.ProviderError]: { providerId: string; error: Error };

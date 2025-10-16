@@ -1,3 +1,5 @@
+import { SupportedChannel } from "../../config";
+
 export interface ProviderExecutionContext {
     // ---- Routing / identification ----
     applicationId: string;
@@ -8,6 +10,7 @@ export interface ProviderExecutionContext {
     bcc?: string[];
     subject: string; // override si besoin
     body: string; // override si besoin
+    channels: SupportedChannel[]; // channels to use (email, sms, push, webhook…)
 
     // ---- Meta control ----
     meta?: {

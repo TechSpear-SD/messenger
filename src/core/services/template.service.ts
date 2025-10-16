@@ -1,4 +1,6 @@
-import { config, TemplateConfig } from '../../config';
+import { config, SupportedChannel, TemplateConfig } from '../../config';
+import { AbstractProvider } from '../../providers/email/provider.interface';
+
 import { DataTransform } from '../../transforms/transform.type';
 import { bus } from '../bus';
 import { EventNames } from '../bus/event-names';
@@ -14,7 +16,9 @@ export class TemplateService {
             data: ctx.businessData,
         });
 
-        const template = await this.loadTemplate(ctx.templateId);
+        const template: TemplateConfig = await this.loadTemplate(
+            ctx.templateId,
+        );
         const transformedData = await this.transformData(
             template,
             ctx.businessData,
@@ -26,7 +30,20 @@ export class TemplateService {
         );
         const provider = await this.loadProvider(template.providerId);
 
-        await this.sendWithProvider(provider, rendered, ctx);
+        try {
+            await this.sendWithProvider(
+                provider,
+                rendered,
+                ctx,
+                template.channels,
+            );
+        } catch (err: any) {
+            bus.emit(EventNames.TemplateError, {
+                templateId: ctx.templateId,
+                error: err,
+            });
+            throw err;
+        }
 
         bus.emit(EventNames.TemplateAfterExecute, {
             templateId: ctx.templateId,
@@ -98,9 +115,10 @@ export class TemplateService {
     }
 
     private static async sendWithProvider(
-        provider: any,
+        provider: AbstractProvider,
         rendered: { subject: string; body: string },
         ctx: TemplateExecutionContext,
+        channels: SupportedChannel[],
     ) {
         const payload: ProviderExecutionContext = {
             applicationId: ctx.applicationId,
@@ -108,12 +126,20 @@ export class TemplateService {
             cc: ctx.cc,
             bcc: ctx.bcc,
             body: rendered.body,
+            channels: channels,
             subject: rendered.subject,
             meta: ctx.meta,
             tracking: ctx.tracking,
         };
+        const results = await provider.send(payload);
 
-        await provider.send(payload);
+        if (results.every((r) => !r.success)) {
+            throw new Error(
+                `All channels failed for template ${ctx.templateId} with provider ${provider.id}`,
+            );
+        }
+
+        return results;
     }
 
     static async applyTemplateTransform(template: TemplateConfig, data: any) {

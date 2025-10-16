@@ -10,88 +10,85 @@ export class LoggerPlugin extends Plugin {
     }
 
     registerListeners(): void {
-        this.bus.on(EventNames.WorkerMessageReceived, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] Worker message received: ${payload.workerId}`,
-            );
-        });
+        // Info events mapped to messages
+        const infoEvents: Partial<{
+            [K in keyof EventPayloads]: (payload: EventPayloads[K]) => string;
+        }> = {
+            [EventNames.WorkerMessageReceived]: (p) =>
+                `Worker message received: ${p.workerId}`,
+            [EventNames.WorkerMessageProcessed]: (p) =>
+                `Worker message processed: ${p.workerId} (${p.durationMs}ms)`,
+            [EventNames.WorkerConnected]: (p) =>
+                `Worker connected: ${p.workerId}`,
+            [EventNames.WorkerSubscribed]: (p) =>
+                `Worker subscribed: ${p.workerId}`,
+            [EventNames.WorkerDisconnected]: (p) =>
+                `Worker disconnected: ${p.workerId}`,
 
-        this.bus.on(EventNames.WorkerMessageProcessed, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] Worker message processed: ${payload.workerId}`,
-            );
-        });
+            [EventNames.ScenarioBeforeExecute]: (p) =>
+                `Before scenario: ${p.scenarioId}`,
+            [EventNames.ScenarioAfterExecute]: (p) =>
+                `After scenario: ${p.scenarioId}`,
 
-        this.bus.on(EventNames.WorkerConnected, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] Worker connected: ${payload.workerId}`,
-            );
-        });
+            [EventNames.TemplateBeforeExecute]: (p) =>
+                `Before template execute: ${p.templateId}`,
+            [EventNames.TemplateAfterExecute]: (p) =>
+                `After template execute: ${p.templateId}`,
+            [EventNames.TemplateBeforeTransform]: (p) =>
+                `Before transform: ${p.templateId}`,
+            [EventNames.TemplateAfterTransform]: (p) =>
+                `After transform: ${p.templateId}`,
+            [EventNames.TemplateBeforeRender]: (p) =>
+                `Before template render: ${p.templateId}`,
+            [EventNames.TemplateAfterRender]: (p) =>
+                `After template render: ${p.templateId}`,
 
-        this.bus.on(EventNames.WorkerSubscribed, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] Worker subscribed: ${payload.workerId}`,
-            );
-        });
+            [EventNames.ProviderBeforeSend]: (p) =>
+                `Before provider send: ${p.providerId}`,
+            [EventNames.ProviderAfterSend]: (p) =>
+                `After provider send: ${p.providerId}`,
+        };
 
-        this.bus.on(EventNames.WorkerDisconnected, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] Worker disconnected: ${payload.workerId}`,
-            );
-        });
+        // Error events mapped to messages
+        const errorEvents: Partial<Record<keyof EventPayloads, string>> = {
+            [EventNames.TemplateError]: 'Template error',
+            [EventNames.TemplateRenderError]: 'Template render error',
+            [EventNames.ProviderError]: 'Provider error',
+            [EventNames.SystemError]: 'System error',
+        };
 
-        this.bus.on(EventNames.ScenarioBeforeExecute, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] Before scenario: ${payload.scenarioId}`,
+        
+        for (const [eventName, messageFn] of Object.entries(infoEvents) as [
+            keyof EventPayloads,
+            (payload: any) => string,
+        ][]) {
+            if (!messageFn) continue;
+            this.bus.on(
+                eventName,
+                (payload: EventPayloads[typeof eventName]) => {
+                    contextLogger.info(`[LoggerPlugin] ${messageFn(payload)}`);
+                },
             );
-        });
+        }
 
-        this.bus.on(EventNames.ScenarioAfterExecute, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] After scenario: ${payload.scenarioId}`,
+        for (const [eventName, baseMessage] of Object.entries(errorEvents) as [
+            keyof EventPayloads,
+            string,
+        ][]) {
+            if (!baseMessage) continue;
+            this.bus.on(
+                eventName,
+                (payload: EventPayloads[typeof eventName]) => {
+                    const id =
+                        (payload as any)?.templateId ||
+                        (payload as any)?.providerId ||
+                        '';
+                    contextLogger.error(
+                        `[LoggerPlugin] ${baseMessage}: ${id}`,
+                        payload,
+                    );
+                },
             );
-        });
-
-        this.bus.on(EventNames.TemplateBeforeRender, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] Before template render: ${payload.templateId}`,
-            );
-        });
-
-        this.bus.on(EventNames.TemplateAfterRender, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] After template render: ${payload.templateId}`,
-            );
-        });
-
-        this.bus.on(EventNames.TemplateRenderError, (payload) => {
-            contextLogger.error(
-                `[LoggerPlugin] Template render error: ${payload.templateId}`,
-                payload,
-            );
-        });
-
-        this.bus.on(EventNames.ProviderBeforeSend, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] Before provider send: ${payload.providerId}`,
-            );
-        });
-
-        this.bus.on(EventNames.ProviderAfterSend, (payload) => {
-            contextLogger.info(
-                `[LoggerPlugin] After provider send: ${payload.providerId}`,
-            );
-        });
-
-        this.bus.on(EventNames.ProviderError, (payload) => {
-            contextLogger.error(
-                `[LoggerPlugin] Provider send error: ${payload.providerId}`,
-                payload,
-            );
-        });
-
-        this.bus.on(EventNames.SystemError, (payload) => {
-            contextLogger.error('[LoggerPlugin] System error', payload);
-        });
+        }
     }
 }

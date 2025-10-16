@@ -40,6 +40,7 @@ export type TemplateConfig = {
     templateId: string;
     providerId: string;
     path: string; // Directory path under templates/
+    channels: SupportedChannel[]; // The channels this template will use from the provider
 
     dataTransformFiles?: string[]; // Optional data transform file names
     description?: string;
@@ -49,7 +50,6 @@ export type TemplateConfig = {
 export type ProviderConfig = {
     providerId: string;
     name: string;
-    types: SupportedChannel[];
 
     description?: string;
     options?: Record<string, any>;

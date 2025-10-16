@@ -1,10 +1,10 @@
 import { providersConfig, SupportedChannel } from '../../config';
-import { Provider } from '../../providers/email/provider.interface';
+import { AbstractProvider } from '../../providers/email/provider.interface';
 import { ProviderFactory } from '../../providers/provider-factory';
 import pinoLogger from '../../logger';
 
 export class ProviderService {
-    private static providers = new Map<string, Provider>();
+    private static providers = new Map<string, AbstractProvider>();
 
     /**
      * This method should be called once at application startup.
@@ -15,9 +15,7 @@ export class ProviderService {
      */
     static async init() {
         for (const config of providersConfig) {
-            const instance: Provider = ProviderFactory.create(config);
-
-            await this.validateSupportedChannels(instance, config.types);
+            const instance = ProviderFactory.create(config);
 
             pinoLogger.info(
                 `[BOOT] Provider ${config.providerId} initialized with supported channels: ${instance.supportedChannels}`,
@@ -26,14 +24,14 @@ export class ProviderService {
         }
     }
 
-    static getById(providerId: string): Provider {
+    static getById(providerId: string): AbstractProvider {
         const provider = this.providers.get(providerId);
         if (!provider) throw new Error(`Provider ${providerId} not found`);
         return provider;
     }
 
     static async validateSupportedChannels(
-        providerInstance: Provider,
+        providerInstance: AbstractProvider,
         channels: SupportedChannel[],
     ) {
         const invalid = channels.filter(

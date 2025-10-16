@@ -10,11 +10,15 @@ export enum EventNames {
 
     TemplateBeforeExecute = 'template.beforeExecute',
     TemplateAfterExecute = 'template.afterExecute',
-    TemplateExecuteError = 'template.executeError',
     TemplateBeforeRender = 'template.beforeRender',
     TemplateAfterRender = 'template.afterRender',
     TemplateRenderError = 'template.renderError',
+    TemplateError = 'template.error',
+    TemplateBeforeTransform = 'template.beforeTransform',
+    TemplateAfterTransform = 'template.afterTransform',
 
+    ProviderSendStart = 'provider.sendStart',
+    ProviderSendEnd = 'provider.sendEnd',
     ProviderBeforeSend = 'provider.beforeSend',
     ProviderAfterSend = 'provider.afterSend',
     ProviderError = 'provider.error',

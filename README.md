@@ -6,322 +6,416 @@ Messenger est un système de messagerie modulaire et configurable conçu pour g�
 
 ## 🏗️ Architecture
 
-Le projet suit une architecture modulaire avec les composants suivants :
+### Vue d'ensemble de l'architecture
 
-### Core Components
+Messenger suit une architecture modulaire basée sur les principes suivants :
 
-- **Services** : Gestion des providers, workers, templates, queues et messages
-- **Workers** : Traitement asynchrone des messages via BullMQ
-- **Providers** : Abstraction des services d'envoi (email, SMS, etc.)
-- **Templates** : Système de templates Handlebars avec transforms de données
-- **Queue System** : Gestion des files d'attente avec Redis/BullMQ
+- **Event-Driven Architecture** : Bus d'événements centralisé pour la communication inter-composants
+- **Queue-based Processing** : Traitement asynchrone via BullMQ/Redis
+- **Plugin System** : Système de plugins extensible pour l'observabilité et les fonctionnalités transversales
+- **Provider Pattern** : Abstraction des fournisseurs de services de messagerie
+- **Template Engine** : Moteur de templating Handlebars avec support de transformations de données
 
-### Structure des dossiers
-
-```
-src/
-├── api/                    # API REST (optionnel)
-├── config/                 # Configuration centralisée
-│   ├── applications.ts     # Configuration des applications
-│   ├── providers.ts        # Configuration des providers
-│   ├── queues.ts          # Configuration des queues
-│   ├── scenarios.ts       # Configuration des scénarios
-│   ├── templates.ts       # Configuration des templates
-│   ├── workers.ts         # Configuration des workers
-│   └── types.ts           # Types TypeScript
-├── core/
-│   ├── entities/          # Entités métier
-│   ├── queues/           # Gestion des queues BullMQ
-│   └── services/         # Services métier
-├── providers/            # Implémentations des providers
-│   └── email/           # Providers email (Gmail, SendGrid, Mock)
-├── transforms/          # Transformations de données
-├── workers/            # Implémentations des workers
-└── templates/         # Templates Handlebars
-```
-
-### Flux de traitement
+### Composants principaux
 
 ```
-Queue → Worker → Scenario → Template → Transform → Provider → Destination
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Application   │───▶│    Scenario      │───▶│    Template     │
+│   (mqr, tst)    │    │ (mqr_welcome_*) │    │ (user_welcome)  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                                        │
+                                                        ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│     Queue       │◀───│     Worker       │◀───│   Provider      │
+│   (BullMQ)      │    │ (GenericBull*)   │    │ (MockProvider)  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-1. **Réception** : Un message arrive dans la queue BullMQ
-2. **Worker** : Le worker BullMQ traite le message
-3. **Scénario** : Le `ScenarioService` identifie le scénario à exécuter
-4. **Template** : Résolution des templates associés au scénario
-5. **Transform** : Application des transformations de données
-6. **Rendu** : Génération du contenu final via le moteur de templates
-7. **Provider** : Sélection du provider approprié (Gmail, SendGrid, etc.)
-8. **Envoi** : Livraison via le canal configuré
+## 📋 Concepts clés
 
-## 🚀 Installation et Configuration
+### 1. Applications (`ApplicationConfig`)
 
-### Prérequis
-
-- Node.js 18+
-- Redis (via Docker ou installation locale)
-- TypeScript
-
-### Installation
-
-1. **Cloner le projet**
-
-```bash
-git clone <repository-url>
-cd messenger
-```
-
-2. **Installer les dépendances**
-
-```bash
-npm install
-```
-
-3. **Configurer l'environnement**
-
-```bash
-cp .env.example .env
-```
-
-Variables d'environnement importantes :
-
-```env
-NODE_ENV=dev
-PORT=3000
-REDIS_URL=redis://localhost:6379
-TEMPLATE_DIR=./templates
-TRANSFORMS_DIR=./transforms
-
-# Provider configurations
-GMAIL_CLIENT_ID=your-gmail-client-id
-GMAIL_CLIENT_SECRET=your-gmail-secret
-SENDGRID_API_KEY=your-sendgrid-key
-```
-
-4. **Démarrer Redis (avec Docker)**
-
-```bash
-docker-compose -f docker-compose.dev.yml up -d
-```
-
-5. **Compiler et démarrer**
-
-```bash
-# Développement
-npm run dev
-
-# Production
-npm run build
-npm start
-```
-
-## 📋 Configuration
-
-### Configuration des Providers
-
-Les providers sont configurés dans `src/config/providers.ts` :
+Représentent les applications clientes qui utilisent Messenger :
 
 ```typescript
-export const providersConfig: ProviderConfig[] = [
-    {
-        providerId: 'mock-multi-provider',
-        name: 'mock',
-        types: ['email'],
-        description: 'Mock provider for testing',
-    },
-    {
-        providerId: 'gmail-provider',
-        name: 'gmail',
-        types: ['email'],
-        description: 'Gmail SMTP provider',
-        options: {
-            clientId: process.env.GMAIL_CLIENT_ID,
-            clientSecret: process.env.GMAIL_CLIENT_SECRET,
-        },
-    },
-];
+{
+  appId: 'mqr',
+  name: 'MenuQR',
+  scenarioIds: ['mqr_welcome_email', 'mqr_confirmation_email']
+}
 ```
 
-### Configuration des Workers
+### 2. Scénarios (`ScenarioConfig`)
 
-Les workers sont configurés dans `src/config/workers.ts` :
+Définissent les workflows de messagerie pour une application :
 
 ```typescript
-export const workersConfig: WorkerConfig[] = [
-    {
-        workerId: 'generic-bull-worker',
-        queueId: 'messenger-queue',
-        concurrency: 5,
-        options: {},
-    },
-];
+{
+  scenarioId: 'mqr_welcome_email',
+  description: 'Email de bienvenue',
+  templateIds: ['mqr_user_welcome']
+}
 ```
 
-### Configuration des Templates
+### 3. Templates (`TemplateConfig`)
 
-Les templates sont configurés dans `src/config/templates.ts` :
+Configuration des templates de messages avec leur provider et canaux :
 
 ```typescript
-export const templatesConfig: TemplateConfig[] = [
-    {
-        templateId: 'mqr_user_welcome',
-        providerId: 'mock-multi-provider',
-        path: 'generic_user_welcome',
-        dataTransformFiles: ['user-transform.ts'],
-    },
-];
+{
+  templateId: 'mqr_user_welcome',
+  providerId: 'mock-multi-provider',
+  path: 'generic_user_welcome',
+  channels: ['email', 'sms'],
+  dataTransformFiles: []
+}
 ```
 
-### Configuration des Queues
+### 4. Providers (`ProviderConfig` + `AbstractProvider`)
 
-Les queues sont configurées dans `src/config/queues.ts` :
+Implémentations des fournisseurs de services de messagerie :
+
+- Support multi-canaux (email, SMS, push, webhook)
+- Gestion des erreurs par canal
+- Interface uniforme via `AbstractProvider`
+
+### 5. Workers (`WorkerConfig` + `BaseWorker`)
+
+Processeurs de messages depuis les queues :
+
+- Support BullMQ avec Redis
+- Traitement concurrent configurable
+- Gestion des contextes et correlation IDs
+
+### 6. Queues (`QueueConfig`)
+
+Configuration des files d'attente :
 
 ```typescript
-export const queuesConfig: QueueConfig[] = [
-    {
-        queueId: 'messenger-queue',
-        topic: 'messenger',
-        redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
-        type: 'bullmq',
-    },
-];
+{
+  queueId: 'messenger-queue',
+  topic: 'messenger',
+  redisUrl: 'redis://localhost:6379',
+  type: 'bullmq'
+}
 ```
 
-## 🎨 Templates
+## 🔄 Flux de traitement
 
-### Structure d'un Template
-
-Chaque template est organisé dans un dossier sous `templates/` :
-
-```
-templates/
-└── generic_user_welcome/
-    ├── body.hbs          # Corps du message (Handlebars)
-    ├── subject.hbs       # Sujet (optionnel)
-    └── schema.ts         # Schéma de validation (optionnel)
-```
-
-### Exemple de Template Handlebars
-
-```handlebars
-<h1>Bienvenue {{userName}} !</h1>
-<p>Merci de vous être inscrit sur {{applicationName}}.</p>
-{{#if loginUrl}}
-    <a href='{{loginUrl}}'>Se connecter</a>
-{{/if}}
-```
-
-### Variables disponibles
-
-- `{{userName}}` : Nom de l'utilisateur
-- `{{applicationName}}` : Nom de l'application
-- `{{loginUrl}}` : URL de connexion
-- `{{supportEmail}}` : Email de support
-- Plus toutes les variables personnalisées transmises
-
-## 🔧 Développement
-
-### Scripts disponibles
-
-```bash
-npm run dev        # Développement avec hot-reload
-npm run build      # Compilation TypeScript
-npm start         # Démarrage en production
-npm run format    # Formatage du code avec Prettier
-```
-
-### Structure des logs
-
-Les logs sont générés avec Pino et stockés dans `logs/app.log` :
-
-```
-[INFO] [BOOT] Initialisation des providers...
-[INFO] [BOOT] Providers initialisés avec succès
-[INFO] [BOOT] Initialisation des workers...
-[INFO] [BOOT] Workers initialisés avec succès
-[INFO] [BOOT] Messenger up and running.
-```
-
-### Monitoring avec Redis Insight
-
-Redis Insight est disponible pour monitorer les queues :
-
-- URL : http://localhost:5540
-- Connexion : redis:6379
-
-## � Utilisation
-
-### Envoi de messages via Queue
+### 1. Enqueue d'un message
 
 ```typescript
-import { QueueProducer } from './src/core/queues/queue-producer';
+const message: QueueMessage = {
+    applicationId: 'mqr',
+    scenarioId: 'mqr_welcome_email',
+    businessData: { userName: 'John', applicationName: 'MenuQR' },
+    to: ['user@example.com'],
+};
+await QueueProducer.enqueue(message);
+```
 
-// Envoyer un message de bienvenue
-await QueueProducer.addJob('messenger-queue', {
-    templateId: 'mqr_user_welcome',
-    to: 'user@example.com',
-    data: {
-        userName: 'John Doe',
-        applicationName: 'Mon App',
-        loginUrl: 'https://app.com/login',
-        supportEmail: 'support@app.com',
-    },
+### 2. Traitement par le Worker
+
+1. **Worker** consomme le message depuis la queue BullMQ
+2. **ScenarioService** charge la configuration du scénario
+3. **TemplateService** traite chaque template du scénario :
+    - Charge la configuration du template
+    - Applique les transformations de données (`DataTransform`)
+    - Rend le template avec Handlebars
+    - Envoie via le provider configuré
+
+### 3. Rendu et envoi
+
+1. **TemplateRenderer** utilise Handlebars pour le rendu
+2. **ProviderService** route vers le bon provider
+3. **Provider** envoie sur les canaux configurés
+4. **EventBus** diffuse les événements de suivi
+
+## 🧩 Système d'événements
+
+Le système utilise un EventBus typé pour la communication inter-composants :
+
+```typescript
+// Événements disponibles
+EventNames.WorkerMessageReceived;
+EventNames.ScenarioBeforeExecute;
+EventNames.TemplateBeforeRender;
+EventNames.ProviderAfterSend;
+// ... et bien d'autres
+```
+
+### Plugin d'observabilité
+
+Le `LoggerPlugin` s'abonne aux événements pour fournir une observabilité complète :
+
+- Logs structurés avec corrélation IDs
+- Métriques de performance (durée de traitement)
+- Traçage des erreurs par composant
+
+## 🔧 Contexte et logging
+
+### Async Local Storage
+
+Utilisation d'`AsyncLocalStorage` pour maintenir le contexte à travers les appels asynchrones :
+
+```typescript
+await runWithContext({ correlationId }, async () => {
+    // Le contexte est disponible dans toute la chaîne d'appels
+    contextLogger.info('Message processing started');
 });
 ```
 
-### Simulation de production
+### Logger contextuel
 
-Un script de test est disponible :
-
-```bash
-npm run ts-node src/scripts/tests/simulate-producer.ts
+```typescript
+// Logger avec correlation ID automatique
+contextLogger.info('Processing template', { templateId });
+contextLogger.error('Template failed', { error, templateId });
 ```
 
-## 🛠️ Types de Canaux Supportés
+## 🎨 Templates et transformations
 
-- **Email** : Via Gmail, SendGrid, ou Mock provider
-- **SMS** : À implémenter selon les providers
-- **Push Notifications** : À implémenter selon les providers
-- **Webhooks** : À implémenter selon les providers
+### Structure des templates
 
-## 📊 Monitoring et Debugging
+```
+templates/
+  generic_user_welcome/
+    subject.hbs
+    body.hbs
+```
 
-### Logs
+### Templates Handlebars
 
-- Niveau de log configurable via `NODE_ENV`
-- Logs structurés avec Pino
-- Rotation automatique des logs
+```handlebars
+{{! subject.hbs }}
+Bienvenue
+{{userName}}
+sur
+{{applicationName}}
+!
 
-### Health Checks
+{{! body.hbs }}
+<h1>Bienvenue {{userName}}</h1>
+<p>Merci de vous être inscrit sur {{applicationName}}.</p>
+<a href='{{loginUrl}}'>Se connecter</a>
+```
 
-Le système inclut des health checks pour :
+### Transformations de données
 
-- Connexion Redis
-- Status des workers
-- Status des providers
+```typescript
+// transforms/user-transform.ts
+export default function userTransform(data: any) {
+    return {
+        ...data,
+        fullName: `${data.firstName} ${data.lastName}`,
+        registrationDate: new Date().toISOString(),
+    };
+}
+```
 
-### Métriques
+## 🚀 Configuration et déploiement
 
-- Nombre de messages traités
-- Temps de traitement moyen
-- Taux d'erreur par provider
+### Variables d'environnement
 
-## 🔒 Sécurité
+```bash
+NODE_ENV=dev
+PORT=3000
+REDIS_URL=redis://localhost:6379
+QUEUE_TOPIC=messenger
+TEMPLATE_DIR=./templates
+TRANSFORMS_DIR=./transforms
+```
 
-- Validation des données avec Zod
-- Sanitisation des templates
-- Authentification des providers
+### Docker Compose pour le développement
 
-## 🛠️ Technologies utilisées
+```yaml
+services:
+    redis:
+        image: redis:7-alpine
+        ports:
+            - '6379:6379'
 
-- **Node.js** + **TypeScript** : Runtime et langage
-- **BullMQ** : Gestion des queues Redis
-- **Redis** : Stockage des queues et cache
-- **Handlebars** : Moteur de templates
-- **Pino** : Logging structuré
-- **Zod** : Validation de schémas
+    redisinsight:
+        image: redis/redisinsight:latest
+        ports:
+            - '5540:5540'
+```
 
-## 📝 Licence
+### Scripts NPM
 
-ISC License
+```bash
+npm run dev      # Développement avec nodemon
+npm run build    # Compilation TypeScript
+npm run start    # Production
+npm run format   # Formatage Prettier
+```
+
+## 📁 Structure du projet
+
+```
+src/
+├── app.ts                 # Application principale (Singleton)
+├── index.ts              # Point d'entrée et bootstrap
+├── logger.ts             # Configuration Pino
+├── config/               # Configuration système
+│   ├── index.ts         # Agrégation des configs
+│   ├── types.ts         # Types TypeScript
+│   ├── applications.ts  # Config des applications
+│   ├── scenarios.ts     # Config des scénarios
+│   ├── templates.ts     # Config des templates
+│   ├── providers.ts     # Config des providers
+│   ├── workers.ts       # Config des workers
+│   └── queues.ts        # Config des queues
+├── core/                # Cœur du système
+│   ├── bus/             # Event Bus
+│   │   ├── event-bus.ts
+│   │   ├── event-names.ts
+│   │   └── event-payloads.ts
+│   ├── context.ts       # Gestion du contexte async
+│   ├── entities/        # Entités métier
+│   │   ├── queue-message.ts
+│   │   ├── template-execution-ctx.ts
+│   │   └── provider-execution-ctx.ts
+│   ├── plugins/         # Système de plugins
+│   │   ├── plugin.ts
+│   │   ├── plugin-manager.ts
+│   │   └── logger-plugin.ts
+│   ├── queues/          # Gestion des queues
+│   │   ├── bull-mq-connection.ts
+│   │   └── queue-producer.ts
+│   └── services/        # Services métier
+│       ├── application.service.ts
+│       ├── scenario.service.ts
+│       ├── template.service.ts
+│       ├── template-renderer.ts
+│       ├── provider.service.ts
+│       ├── worker.service.ts
+│       └── queue.service.ts
+├── providers/           # Implémentations providers
+│   ├── provider-factory.ts
+│   └── email/
+│       ├── provider.interface.ts
+│       └── mock-provider.ts
+├── workers/             # Implémentations workers
+│   ├── base-worker.ts
+│   ├── worker.interface.ts
+│   ├── worker-factory.ts
+│   └── generic-bullmq-worker.ts
+├── transforms/          # Transformations de données
+│   ├── transform.type.ts
+│   └── mock-transform.ts
+├── scripts/tests/       # Scripts de test
+│   └── simulate-producer.ts
+└── api/                 # API REST (TODO)
+    ├── server.ts
+    ├── controllers/
+    └── routers/
+```
+
+## 🔧 Technologies utilisées
+
+### Core
+
+- **TypeScript** : Langage principal avec typage strict
+- **Node.js** : Runtime JavaScript
+- **Pino** : Logger haute performance avec support pretty-print
+
+### Queue & Redis
+
+- **BullMQ** : Queue Redis robuste et scalable
+- **IORedis** : Client Redis optimisé
+- **Redis** : Base de données en mémoire pour les queues
+
+### Templates
+
+- **Handlebars** : Moteur de template pour le rendu HTML/text
+- **File System** : Gestion des templates sur disque avec cache
+
+### Development
+
+- **Nodemon** : Hot reload en développement
+- **Prettier** : Formatage de code automatique
+- **Docker Compose** : Orchestration des services de développement
+
+## 🎯 Cas d'usage typiques
+
+### 1. Email de bienvenue
+
+```typescript
+// Message entrant dans la queue
+{
+  applicationId: 'mqr',
+  scenarioId: 'mqr_welcome_email',
+  businessData: {
+    userName: 'Alice Dupont',
+    applicationName: 'MenuQR',
+    loginUrl: 'https://menuqr.app/login',
+    supportEmail: 'support@menuqr.app'
+  },
+  to: ['alice@example.com']
+}
+```
+
+### 2. Notification multi-canal
+
+```typescript
+// Template configuré pour email + SMS
+{
+  templateId: 'urgent_notification',
+  providerId: 'multi-provider',
+  channels: ['email', 'sms', 'push'],
+  // Le provider tentera l'envoi sur les 3 canaux
+}
+```
+
+### 3. Traitement avec transformation
+
+```typescript
+// Template avec transformation de données
+{
+  templateId: 'user_report',
+  dataTransformFiles: ['aggregate-user-data.ts', 'format-dates.ts'],
+  // Les transforms s'appliquent en séquence
+}
+```
+
+## 🔍 Monitoring et observabilité
+
+### Logs structurés
+
+- Correlation IDs automatiques
+- Logs contextuels par composant
+- Métriques de performance intégrées
+
+### Events tracking
+
+- Suivi complet du cycle de vie des messages
+- Événements granulaires par étape
+- Support pour intégration monitoring externe
+
+### Redis monitoring
+
+- RedisInsight UI disponible sur `:5540`
+- Visualisation des queues en temps réel
+- Métriques de performance Redis
+
+## 🚧 Roadmap et extensions
+
+### API REST (TODO)
+
+- Endpoints pour enqueue des messages
+- API de gestion des configurations
+- Webhook callbacks pour status
+
+### Nouveaux providers
+
+- Intégration SendGrid, Mailgun
+- Support Twilio pour SMS
+- Providers push notifications
+
+### Fonctionnalités avancées
+
+- Retry policies configurables
+- Rate limiting par provider
+- Template versioning
+- A/B testing de templates

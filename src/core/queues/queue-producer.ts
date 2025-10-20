@@ -17,7 +17,13 @@ export class QueueProducer {
             throw new Error('Queue configuration not found');
         }
 
-        const connection = getRedisConnection(redisUrl || queueConfig.redisUrl);
+        if (!queueConfig.options || !queueConfig.options.redisUrl) {
+            throw new Error('Redis URL not configured for the queue');
+        }
+
+        const connection = getRedisConnection(
+            redisUrl || queueConfig.options.redisUrl,
+        );
         const queue = new Queue(topic || queueConfig.topic, { connection });
 
         await queue.add('default', data);

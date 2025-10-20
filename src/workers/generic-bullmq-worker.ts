@@ -31,9 +31,16 @@ export class GenericBullWorker extends BaseWorker {
                 `Queue with ID ${this.workerConfig.queueId} not found`,
             );
         }
+
+        if (!queueConfig.options || !queueConfig.options.redisUrl) {
+            throw new Error(
+                `[GenericBullWorker] redisUrl required in queueConfig.options`,
+            );
+        }
+
         this.queueTopic = queueConfig.topic;
 
-        const connection = getRedisConnection(queueConfig.redisUrl);
+        const connection = getRedisConnection(queueConfig.options.redisUrl);
         this.connection = connection;
 
         this.connection.on('ready', async () => {

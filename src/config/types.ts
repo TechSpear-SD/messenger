@@ -5,7 +5,6 @@ export type QueueType = 'bullmq';
 export interface QueueConfig {
     queueId: string; // unique identifier
     topic: string; // e.g., 'messenger'
-    redisUrl: string;
     type: QueueType;
 
     description?: string;

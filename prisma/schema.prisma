@@ -5,33 +5,260 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/api/generated/prisma"
 }
 
-model Template {
-  id                 String   @id @default(cuid())
-  templateId         String   @unique
-  providerId         String
-  channels           String[]
-  path               String
-  dataTransformFiles String[]
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+enum SupportedChannel {
+  email
+  sms
+  push
+  webhook
+}
+
+enum QueueType {
+  bullmq
+}
+
+enum MessageStatus {
+  queued
+  processing
+  sent
+  delivered
+  failed
+  expired
+  cancelled
+}
+
+enum ExecutionStatus {
+  pending
+  running
+  success
+  failed
+  cancelled
+}
+
+enum DeliveryBackoff {
+  fixed
+  linear
+  exponential
+}
+
+enum Priority {
+  low
+  normal
+  high
+}
+
+model QueueConfig {
+  id      Int       @id @default(autoincrement())
+  queueId String    @unique
+  topic   String
+  type    QueueType
+
+  description String?
+  options     Json?
+  workers     WorkerConfig[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WorkerConfig {
+  id          Int         @id @default(autoincrement())
+  workerId    String      @unique
+  queueId     String
+  queue       QueueConfig @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
+  description String?
+  options     Json?
+  concurrency Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Provider {
-  id                String   @id @default(cuid())
-  providerId        String   @unique
-  supportedChannels String[]
+  id                Int                @id @default(autoincrement())
+  providerId        String             @unique
+  name              String
+  description       String?
+  options           Json?
+  supportedChannels SupportedChannel[]
   defaultFrom       String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+
+  // providerExecutions ProviderExecution[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  Template  Template[]
 }
 
-model Strategy {
-  id        String   @id @default(cuid())
-  name      String
-  config    Json
+model Application {
+  id          Int                   @id @default(autoincrement())
+  appId       String                @unique
+  name        String
+  description String?
+  scenarios   ApplicationScenario[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Scenario {
+  id                Int                   @id @default(autoincrement())
+  scenarioId        String                @unique
+  description       String?
+  applications      ApplicationScenario[]
+  scenarioTemplates ScenarioTemplate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ApplicationScenario {
+  id            Int      @id @default(autoincrement())
+  applicationId Int
+  scenarioId    Int
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  application Application @relation(fields: [applicationId], references: [id])
+  scenario    Scenario    @relation(fields: [scenarioId], references: [id])
+
+  @@unique([applicationId, scenarioId])
+}
+
+model Template {
+  id                 Int                @id @default(autoincrement())
+  templateId         String             @unique
+  providerId         String
+  provider           Provider?          @relation(fields: [providerId], references: [providerId])
+  path               String
+  channels           SupportedChannel[]
+  dataTransformFiles String[]           @default([])
+  description        String?
+  validationSchema   Json?
+  defaultFrom        String?
+
+  scenarioTemplates ScenarioTemplate[]
+  // templateExecutions TemplateExecution[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ScenarioTemplate {
+  id         Int      @id @default(autoincrement())
+  scenario   Scenario @relation(fields: [scenarioId], references: [scenarioId], onDelete: Cascade)
+  scenarioId String
+  template   Template @relation(fields: [templateId], references: [templateId], onDelete: Cascade)
+  templateId String
+  order      Int?
+  enabled    Boolean  @default(true)
+
+  @@unique([scenarioId, templateId])
+}
+
+// model Message {
+//   id              String            @id @default(uuid())
+//   messageId       String?           @unique
+//   applicationId   String
+//   scenarioId      String?
+//   businessData    Json
+//   to              String[]
+//   cc              String[]          @default([])
+//   bcc             String[]          @default([])
+//   replyTo         String?
+//   subject         String?
+//   bodyOverride    String?
+//   // meta
+//   priority        Priority?         @default(normal)
+//   locale          String?
+//   correlationId   String?
+//   tags            String[]          @default([])
+//   createdAt       DateTime          @default(now())
+//   expiresAt       DateTime?
+//   // delivery explicit options (simple fields; details in ProviderExecution)
+//   deliveryChannel SupportedChannel?
+//   retryPolicy     Json? // { maxRetries, backoff, delay }
+//   scheduleAt      DateTime?
+//   ttl             Int? // ms
+//   // tracking / callback
+//   callbackUrl     String?
+//   status          MessageStatus     @default(queued)
+
+//   templateExecutions TemplateExecution[]
+
+//   @@index([applicationId])
+//   @@index([status])
+//   @@index([correlationId])
+// }
+
+// model TemplateExecution {
+//   id                 String              @id @default(uuid())
+//   messageId          String
+//   message            Message             @relation(fields: [messageId], references: [id], onDelete: Cascade)
+//   templateId         String
+//   template           Template            @relation(fields: [templateId], references: [templateId])
+//   businessData       Json
+//   to                 String[]
+//   cc                 String[]            @default([])
+//   bcc                String[]            @default([])
+//   subject            String?
+//   bodyOverride       String?
+//   meta               Json?
+//   tracking           Json?
+//   status             ExecutionStatus     @default(pending)
+//   startedAt          DateTime?
+//   endedAt            DateTime?
+//   durationMs         Int?
+//   // provider executions (attempts)
+//   providerExecutions ProviderExecution[]
+
+//   @@index([status])
+//   @@index([templateId])
+//   @@index([messageId])
+// }
+
+// model ProviderExecution {
+//   id                  String            @id @default(uuid())
+//   templateExecutionId String
+//   templateExecution   TemplateExecution @relation(fields: [templateExecutionId], references: [id], onDelete: Cascade)
+//   providerId          String
+//   provider            Provider          @relation(fields: [providerId], references: [providerId])
+//   channel             SupportedChannel
+//   attemptNumber       Int               @default(1)
+//   requestPayload      Json?
+//   responsePayload     Json?
+//   errorText           String?
+//   status              ExecutionStatus   @default(pending)
+//   startedAt           DateTime?
+//   endedAt             DateTime?
+//   durationMs          Int?
+
+//   @@index([providerId])
+//   @@index([status])
+//   @@index([attemptNumber])
+// }
+
+model EventLog {
+  id            String   @id @default(uuid())
+  eventName     String
+  payload       Json?
+  correlationId String?
+  messageId     String?
+  createdAt     DateTime @default(now())
+
+  @@index([eventName, createdAt])
+  @@index([correlationId])
+  @@index([messageId])
+}
+
+model Metric {
+  id         String   @id @default(uuid())
+  name       String
+  value      Float
+  tags       Json?
+  recordedAt DateTime @default(now())
+
+  @@index([name, recordedAt])
 }

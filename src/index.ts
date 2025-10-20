@@ -1,3 +1,4 @@
+import { apiBootstrap } from './api';
 import { MessengerApp } from './app';
 import pinoLogger from './logger';
 
@@ -19,4 +20,5 @@ async function bootstrap() {
     });
 }
 
+apiBootstrap();
 bootstrap();

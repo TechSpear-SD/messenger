@@ -1,17 +1,23 @@
 import { ProviderExecutionContext } from '../../core/entities/provider-execution-ctx';
-import { SupportedChannel } from '../../config';
 import { contextLogger } from '../../core/context';
 import { AbstractProvider } from './provider.interface';
+import { Provider, SupportedChannel } from '@prisma/client';
 
 export class MockProvider extends AbstractProvider {
     readonly id = 'mock-multi-provider';
-    readonly supportedChannels: SupportedChannel[] = ['email', 'sms', 'push'];
-    readonly defaultFrom = 'noreply@mock.com';
+    get implementedChannels() {
+        return ['email', 'sms', 'push'] as SupportedChannel[];
+    }
+
+    constructor(provider: Provider) {
+        super(provider);
+    }
 
     protected async sendByChannel(
         channel: SupportedChannel,
         message: ProviderExecutionContext,
     ): Promise<string | undefined> {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
         switch (channel) {
             case 'email':
                 contextLogger.info(`[MOCK][EMAIL] Sending message`, {

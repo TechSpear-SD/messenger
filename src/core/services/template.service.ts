@@ -1,4 +1,6 @@
-import { config, SupportedChannel, TemplateConfig } from '../../config';
+import { SupportedChannel } from '@prisma/client';
+import { config, TemplateConfig } from '../../config';
+import prisma from '../../prisma';
 import { AbstractProvider } from '../../providers/email/provider.interface';
 
 import { DataTransform } from '../../transforms/transform.type';
@@ -28,7 +30,7 @@ export class TemplateService {
             transformedData,
             ctx,
         );
-        const provider = await this.loadProvider(template.providerId);
+        const provider = await this.loadProviderInstance(template.providerId);
 
         try {
             await this.sendWithProvider(
@@ -106,8 +108,8 @@ export class TemplateService {
         return { subject, body };
     }
 
-    private static async loadProvider(providerId: string) {
-        const provider = ProviderService.getById(providerId);
+    private static async loadProviderInstance(providerId: string) {
+        const provider = ProviderService.getInstanceByProviderId(providerId);
         if (!provider) {
             throw new Error(`Provider not found: ${providerId}`);
         }

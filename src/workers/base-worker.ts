@@ -4,11 +4,24 @@ import { EventNames } from '../core/bus/event-names';
 import { getContext, runWithContext } from '../core/context';
 import pinoLogger from '../logger';
 import crypto from 'crypto';
-import { WorkerConfig } from '../config';
+import { WorkerConfig } from '@prisma/client';
+import { QueueConfig } from '@prisma/client';
+import { BaseQueueOptions } from '../config/types';
+import { ZodSchema } from 'zod';
 
-export abstract class BaseWorker {
+export type TypedQueueConfig<T extends BaseQueueOptions = BaseQueueOptions> =
+    Omit<QueueConfig, 'options'> & { options: T };
+
+export abstract class BaseWorker<
+    TOptions extends BaseQueueOptions = BaseQueueOptions,
+> {
     abstract id: string;
     abstract workerConfig: WorkerConfig;
+
+    /**
+     * Every worker must define a Zod schema to validate the queue options it requires.
+     */
+    protected abstract readonly optionsSchema: ZodSchema<TOptions>;
 
     async handleMessage(message: QueueMessage): Promise<void> {
         const start = Date.now();
@@ -23,7 +36,8 @@ export abstract class BaseWorker {
         }
 
         bus.emit(EventNames.WorkerMessageReceived, {
-            workerId: this.id,
+            workerId: this.workerConfig.workerId,
+            workerClass: this.workerConfig.workerImplId,
             message,
         });
 
@@ -58,7 +72,7 @@ export abstract class BaseWorker {
         });
     }
 
-    protected async subscribe(): Promise<void> {
+    async subscribe(): Promise<void> {
         await this.handleSubscribe();
         bus.emit(EventNames.WorkerSubscribed, {
             workerConfig: this.workerConfig,
@@ -78,5 +92,29 @@ export abstract class BaseWorker {
 
     protected isValidQueueMessage(msg: any): msg is QueueMessage {
         return typeof msg?.applicationId === 'string' && Array.isArray(msg?.to);
+    }
+
+    protected validateQueueOptions(
+        config: QueueConfig,
+    ): asserts config is TypedQueueConfig<TOptions> {
+        if (!config.options) {
+            throw new Error(
+                `[${this.constructor.name}] queueConfig.options missing`,
+            );
+        }
+
+        const parsed = this.optionsSchema.safeParse(config.options);
+
+        if (!parsed.success) {
+            const issues = parsed.error.issues
+                .map((i) => `${i.path.join('.')}: ${i.message}`)
+                .join(', ');
+            throw new Error(
+                `[${this.constructor.name}] Invalid queueConfig.options: ${issues}`,
+            );
+        }
+
+        // On remplace les options validées par la version typée
+        (config as any).options = parsed.data;
     }
 }

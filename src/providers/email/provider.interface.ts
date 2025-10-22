@@ -1,8 +1,8 @@
-import { SupportedChannel } from '../../config';
 import { ProviderExecutionContext } from '../../core/entities/provider-execution-ctx';
 import { contextLogger } from '../../core/context';
 import { bus } from '../../core/bus';
 import { EventNames } from '../../core/bus/event-names';
+import { Provider, SupportedChannel } from '@prisma/client';
 
 export interface ProviderChannelResult {
     channel: SupportedChannel;
@@ -13,8 +13,21 @@ export interface ProviderChannelResult {
 
 export abstract class AbstractProvider {
     abstract readonly id: string;
-    abstract readonly supportedChannels: SupportedChannel[];
-    readonly defaultFrom?: string;
+    abstract get implementedChannels(): SupportedChannel[];
+
+    supportedChannels: SupportedChannel[] = [];
+    defaultFrom?: string;
+
+    constructor(provider: Provider) {
+        this.defaultFrom = provider.defaultFrom || undefined;
+        this.setSupportedChannels(provider.supportedChannels);
+    }
+
+    public setSupportedChannels(channels: SupportedChannel[]) {
+        this.supportedChannels = this.implementedChannels.filter((c) =>
+            channels.includes(c),
+        );
+    }
 
     async send(
         message: ProviderExecutionContext,

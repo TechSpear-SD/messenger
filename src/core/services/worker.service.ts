@@ -1,10 +1,14 @@
-import { workersConfig } from '../../config';
+import { WorkerConfig } from '@prisma/client';
+import prisma from '../../prisma';
 import { BaseWorker } from '../../workers/base-worker';
 import { WorkerFactory } from '../../workers/worker-factory';
-import { Worker } from '../../workers/worker.interface';
 
 export class WorkerService {
     private static workers = new Map<string, BaseWorker>();
+
+    static async getAll(): Promise<WorkerConfig[]> {
+        return prisma.workerConfig.findMany();
+    }
 
     /**
      * This method should be called once at application startup.
@@ -14,15 +18,16 @@ export class WorkerService {
      *
      */
     static async init() {
-        for (const config of workersConfig) {
+        for (const config of await this.getAll()) {
             const instance: BaseWorker = WorkerFactory.create(config);
             await instance.connect();
+            await instance.subscribe();
 
             this.workers.set(config.workerId, instance);
         }
     }
 
-    static get(workerId: string): BaseWorker {
+    static getCachedWorkerInstance(workerId: string): BaseWorker {
         const provider = this.workers.get(workerId);
         if (!provider) throw new Error(`Provider ${workerId} not found`);
         return provider;

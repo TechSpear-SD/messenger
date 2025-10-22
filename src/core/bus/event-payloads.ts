@@ -2,7 +2,11 @@ import { EventNames } from './event-names';
 
 export type EventPayloads = {
     [EventNames.WorkerDisconnected]: { workerId: string };
-    [EventNames.WorkerMessageReceived]: { workerId: string; message: any };
+    [EventNames.WorkerMessageReceived]: {
+        workerId: string;
+        workerClass: string;
+        message: any;
+    };
     [EventNames.WorkerConnected]: { workerConfig: any; workerId: string };
     [EventNames.WorkerSubscribed]: { workerConfig: any; workerId: string };
     [EventNames.WorkerMessageProcessed]: {

@@ -1,28 +1,33 @@
 import { Worker as BullWorker } from 'bullmq';
 import IORedis from 'ioredis';
-import { WorkerConfig } from '../config';
-import { QueueService } from '../core/services/queue.service';
-import { ScenarioService } from '../core/services/scenario.service';
-import { getRedisConnection } from '../core/queues/bull-mq-connection';
+import { getRedisConnection } from '../core/queues/redis-connection';
 import { BaseWorker } from './base-worker';
 import pinoLogger from '../logger';
+import { WorkerConfig } from '@prisma/client';
+import { QueueService } from '../core/services/queue.service';
+import { ScenarioService } from '../core/services/scenario.service';
+import z from 'zod';
+import { QueueMessage } from '../core/entities/queue-message';
 
-export class GenericBullWorker extends BaseWorker {
-    readonly id: string;
+export const BullWorkerOptionsSchema = z.object({ redisUrl: z.url() });
+export type BullWorkerOptions = z.infer<typeof BullWorkerOptionsSchema>;
+
+export class GenericBullWorker extends BaseWorker<BullWorkerOptions> {
+    readonly id: string = 'generic-bull-worker';
     readonly workerConfig: WorkerConfig;
+    protected readonly optionsSchema = BullWorkerOptionsSchema;
 
     private connection?: IORedis;
     private worker?: BullWorker;
     private queueTopic?: string;
 
-    constructor(workerConfig: WorkerConfig, id = 'generic-bull-worker') {
+    constructor(workerConfig: WorkerConfig) {
         super();
         this.workerConfig = workerConfig;
-        this.id = id;
     }
 
     protected async handleConnect(): Promise<void> {
-        const queueConfig = await QueueService.getQueueById(
+        const queueConfig = await QueueService.getByQueueId(
             this.workerConfig.queueId,
         );
 
@@ -32,45 +37,43 @@ export class GenericBullWorker extends BaseWorker {
             );
         }
 
-        if (!queueConfig.options || !queueConfig.options.redisUrl) {
-            throw new Error(
-                `[GenericBullWorker] redisUrl required in queueConfig.options`,
-            );
-        }
+        this.validateQueueOptions(queueConfig);
 
+        const { redisUrl } = queueConfig.options;
         this.queueTopic = queueConfig.topic;
+        this.connection = getRedisConnection(redisUrl);
 
-        const connection = getRedisConnection(queueConfig.options.redisUrl);
-        this.connection = connection;
+        await new Promise<void>((resolve) => {
+            if (this.connection!.status === 'ready') {
+                pinoLogger.info(
+                    `[${this.workerConfig.workerId}] Redis already ready`,
+                );
+                resolve();
+                return;
+            }
 
-        this.connection.on('ready', async () => {
-            pinoLogger.info(
-                this.workerConfig,
-                `[GenericBullWorker] Redis connection ready`,
-            );
-            await this.subscribe();
+            this.connection!.once('ready', () => {
+                pinoLogger.info(
+                    `[${this.workerConfig.workerId}] Redis connection ready`,
+                );
+                resolve();
+            });
         });
 
         this.connection.on('end', async () => {
             pinoLogger.warn(
                 this.workerConfig,
-                `[GenericBullWorker] Redis connection lost`,
+                `[${this.workerConfig.workerId}] Redis connection lost`,
             );
             await this.teardownWorker();
         });
 
         this.connection.on('error', (err) => {
-            pinoLogger.error(err, `[GenericBullWorker] Redis error`);
-        });
-
-        if (this.connection.status === 'ready') {
-            await this.subscribe();
-        } else {
-            pinoLogger.info(
-                this.workerConfig,
-                `[GenericBullWorker] Waiting for Redis connection...`,
+            pinoLogger.error(
+                err,
+                `[${this.workerConfig.workerId}] Redis error`,
             );
-        }
+        });
     }
 
     protected async handleSubscribe(): Promise<void> {
@@ -129,7 +132,7 @@ export class GenericBullWorker extends BaseWorker {
         this.connection = undefined;
     }
 
-    protected async processMessage(message: any): Promise<void> {
+    protected async processMessage(message: QueueMessage): Promise<void> {
         await ScenarioService.execute(message);
     }
 }

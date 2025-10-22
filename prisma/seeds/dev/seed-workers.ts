@@ -6,7 +6,8 @@ export async function seedWorkers(prisma: PrismaClient) {
         where: { workerId: 'generic-bull-worker' },
         update: {},
         create: {
-            workerId: 'generic-bull-worker',
+            workerId: 'bull-worker',
+            workerImplId: 'generic-bull-worker',
             queueId: 'messenger-queue',
             options: {},
         },

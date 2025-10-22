@@ -5,14 +5,24 @@ import { TemplateService } from './template.service';
 import { contextLogger } from '../context';
 import { bus } from '../bus';
 import { EventNames } from '../bus/event-names';
+import { Scenario } from '@prisma/client';
+import prisma from '../../prisma';
 
 export class ScenarioService {
-    static async getById(scenarioId: string) {
-        return (
-            config.scenarios.find(
-                (scenario) => scenario.scenarioId === scenarioId,
-            ) || null
-        );
+    static async getById(id: number): Promise<Scenario | null> {
+        return prisma.scenario.findUnique({ where: { id } });
+    }
+
+    static async getByScenarioId(scenarioId: string): Promise<Scenario | null> {
+        return await prisma.scenario.findUnique({ where: { scenarioId } });
+    }
+
+    static async getTemplatesIdsByScenarioId(
+        scenarioId: string,
+    ): Promise<string[]> {
+        return prisma.scenarioTemplate
+            .findMany({ where: { scenarioId }, select: { templateId: true } })
+            .then((results) => results.map((r) => r.templateId));
     }
 
     /**
@@ -29,23 +39,20 @@ export class ScenarioService {
             scenarioId: message.scenarioId,
         });
 
-        const app = await ApplicationService.getById(message.applicationId);
+        const app = await ApplicationService.getByAppId(message.applicationId);
         if (!app) {
             throw new Error(`Unknown application: ${message.applicationId}`);
         }
 
-        const scenario = await ScenarioService.getById(message.scenarioId);
-        if (!scenario) {
-            throw new Error(
-                `No scenario with scenarioId ${message.scenarioId}`,
-            );
-        }
+        const templatesByScenarioId = await this.getTemplatesIdsByScenarioId(
+            message.scenarioId,
+        );
 
-        for (const template of scenario.templateIds) {
+        for (const templateId of templatesByScenarioId) {
             try {
                 await TemplateService.execute({
                     applicationId: app.appId,
-                    templateId: template,
+                    templateId: templateId,
                     businessData: message.businessData,
                     to: message.to,
                     cc: message.cc,
@@ -58,8 +65,8 @@ export class ScenarioService {
             } catch (err) {
                 contextLogger.error('Template execution failed for scenario ', {
                     err,
-                    templateId: template,
-                    scenarioId: scenario.scenarioId,
+                    templateId,
+                    scenarioId: message.scenarioId,
                 });
             }
         }

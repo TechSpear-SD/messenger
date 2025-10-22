@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import { getRedisConnection } from '../queues/bull-mq-connection';
+import { getRedisConnection } from './redis-connection';
 import { QueueService } from '../services/queue.service';
 
 export class QueueProducer {

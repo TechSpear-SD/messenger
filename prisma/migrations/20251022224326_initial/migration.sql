@@ -34,6 +34,7 @@ CREATE TABLE "QueueConfig" (
 CREATE TABLE "WorkerConfig" (
     "id" SERIAL NOT NULL,
     "workerId" TEXT NOT NULL,
+    "workerImplId" TEXT NOT NULL,
     "queueId" TEXT NOT NULL,
     "description" TEXT,
     "options" JSONB,

@@ -1,5 +1,6 @@
+import { SupportedChannel } from '@prisma/client';
+
 export type TemplateType = 'html' | 'text';
-export type SupportedChannel = 'email' | 'sms' | 'push' | 'webhook';
 export type QueueType = 'bullmq';
 
 export interface QueueConfig {
@@ -8,7 +9,15 @@ export interface QueueConfig {
     type: QueueType;
 
     description?: string;
-    options?: Record<string, any>;
+    options?: BaseQueueOptions;
+}
+
+export interface BaseQueueOptions {
+    [key: string]: any;
+}
+
+export interface BaseWorkerOptions {
+    [key: string]: any;
 }
 
 export interface WorkerConfig {
@@ -16,7 +25,7 @@ export interface WorkerConfig {
     queueId: string;
 
     description?: string;
-    options?: Record<string, any>;
+    options?: BaseWorkerOptions;
     concurrency?: number;
 }
 

@@ -1,10 +1,15 @@
-import { providersConfig, SupportedChannel } from '../../config';
 import { AbstractProvider } from '../../providers/email/provider.interface';
 import { ProviderFactory } from '../../providers/provider-factory';
 import pinoLogger from '../../logger';
+import { Provider, SupportedChannel } from '@prisma/client';
+import prisma from '../../prisma';
 
 export class ProviderService {
     private static providers = new Map<string, AbstractProvider>();
+
+    static getAll(): Promise<Provider[]> {
+        return prisma.provider.findMany();
+    }
 
     /**
      * This method should be called once at application startup.
@@ -14,7 +19,8 @@ export class ProviderService {
      *
      */
     static async init() {
-        for (const config of providersConfig) {
+        const allConfigs = await this.getAll();
+        for (const config of allConfigs) {
             const instance = ProviderFactory.create(config);
 
             pinoLogger.info(
@@ -24,7 +30,19 @@ export class ProviderService {
         }
     }
 
-    static getById(providerId: string): AbstractProvider {
+    static async getAllProviders() {
+        return prisma.provider.findMany();
+    }
+
+    static async getByProviderId(providerId: string): Promise<Provider | null> {
+        return prisma.provider.findUnique({ where: { providerId } });
+    }
+
+    static async getById(id: number): Promise<Provider | null> {
+        return prisma.provider.findUnique({ where: { id } });
+    }
+
+    static getInstanceByProviderId(providerId: string): AbstractProvider {
         const provider = this.providers.get(providerId);
         if (!provider) throw new Error(`Provider ${providerId} not found`);
         return provider;

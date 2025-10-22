@@ -20,5 +20,5 @@ async function bootstrap() {
     });
 }
 
-apiBootstrap();
+// apiBootstrap();
 bootstrap();

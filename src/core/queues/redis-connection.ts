@@ -25,6 +25,13 @@ export function getRedisConnection(
     return connection;
 }
 
+export function getNewRedisConnection(redisUrl: string): IORedis {
+    return new IORedis(redisUrl, {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+    });
+}
+
 export async function closeRedisConnection() {
     if (connection) {
         await connection.quit();

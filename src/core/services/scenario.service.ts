@@ -1,6 +1,5 @@
 import { QueueMessage } from '../entities/queue-message';
 import { ApplicationService } from './application.service';
-import { config, scenariosConfig } from '../../config';
 import { TemplateService } from './template.service';
 import { contextLogger } from '../context';
 import { bus } from '../bus';

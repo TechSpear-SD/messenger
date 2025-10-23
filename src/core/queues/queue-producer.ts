@@ -1,30 +1,10 @@
 import { Queue } from 'bullmq';
-import { getRedisConnection } from './redis-connection';
-import { QueueService } from '../services/queue.service';
+import { getNewRedisConnection } from './redis-connection';
 
-export class QueueProducer {
-    static async enqueue(
-        data: any,
-        topic?: string,
-        redisUrl?: string,
-        queueId?: string,
-    ) {
-        const queueConfig = await QueueService.getQueueById(
-            queueId || 'messenger-queue',
-        );
-
-        if (!queueConfig) {
-            throw new Error('Queue configuration not found');
-        }
-
-        if (!queueConfig.options || !queueConfig.options.redisUrl) {
-            throw new Error('Redis URL not configured for the queue');
-        }
-
-        const connection = getRedisConnection(
-            redisUrl || queueConfig.options.redisUrl,
-        );
-        const queue = new Queue(topic || queueConfig.topic, { connection });
+export class BullMQProducer {
+    static async enqueue(data: any, redisUrl: string, topic: string) {
+        const connection = getNewRedisConnection(redisUrl);
+        const queue = new Queue(topic, { connection });
 
         await queue.add('default', data);
         await queue.close();

@@ -1,16 +1,6 @@
 export * from './types';
-export * from './workers';
-export * from './templates';
-export * from './scenarios';
-export * from './providers';
 
 import dotenv from 'dotenv';
-import { providersConfig } from './providers';
-import { workersConfig } from './workers';
-import { scenariosConfig } from './scenarios';
-import { queuesConfig } from './queues';
-import { templatesConfig } from './templates';
-import { applicationsConfig } from './applications';
 
 dotenv.config();
 
@@ -21,10 +11,4 @@ export const config = {
     transformsDir: process.env.TRANSFORMS_DIR || './transforms',
     templateDir: process.env.TEMPLATE_DIR || './templates',
     apiBaseUri: process.env.API_BASE_URI || '/api',
-    providers: providersConfig,
-    workers: workersConfig,
-    scenarios: scenariosConfig,
-    queues: queuesConfig,
-    templates: templatesConfig,
-    applications: applicationsConfig,
 };

@@ -1,5 +1,5 @@
-import { SupportedChannel } from '@prisma/client';
-import { config, TemplateConfig } from '../../config';
+import { SupportedChannel, Template } from '@prisma/client';
+import { config } from '../../config';
 import prisma from '../../prisma';
 import { AbstractProvider } from '../../providers/email/provider.interface';
 
@@ -12,15 +12,21 @@ import { ProviderService } from './provider.service';
 import { TemplateRenderer } from './template-renderer';
 
 export class TemplateService {
+    static async getAllTemplates(): Promise<Template[]> {
+        return prisma.template.findMany();
+    }
+
+    static async getByTemplateId(templateId: string): Promise<Template | null> {
+        return prisma.template.findUnique({ where: { templateId } });
+    }
+
     static async execute(ctx: TemplateExecutionContext): Promise<void> {
         bus.emit(EventNames.TemplateBeforeExecute, {
             templateId: ctx.templateId,
             data: ctx.businessData,
         });
 
-        const template: TemplateConfig = await this.loadTemplate(
-            ctx.templateId,
-        );
+        const template: Template = await this.loadTemplate(ctx.templateId);
         const transformedData = await this.transformData(
             template,
             ctx.businessData,
@@ -53,12 +59,9 @@ export class TemplateService {
         });
     }
 
-    private static async loadTemplate(
-        templateId: string,
-    ): Promise<TemplateConfig> {
-        const template = config.templates.find(
-            (t) => t.templateId === templateId,
-        );
+    private static async loadTemplate(templateId: string): Promise<Template> {
+        const template = await this.getByTemplateId(templateId);
+
         if (!template) {
             throw new Error(`Template not found: ${templateId}`);
         }
@@ -66,7 +69,7 @@ export class TemplateService {
     }
 
     private static async transformData(
-        template: TemplateConfig,
+        template: Template,
         data: any,
     ): Promise<any> {
         bus.emit(EventNames.TemplateBeforeTransform, {
@@ -85,7 +88,7 @@ export class TemplateService {
     }
 
     private static async renderTemplate(
-        template: TemplateConfig,
+        template: Template,
         data: any,
         ctx: TemplateExecutionContext,
     ): Promise<{ subject: string; body: string }> {
@@ -144,7 +147,7 @@ export class TemplateService {
         return results;
     }
 
-    static async applyTemplateTransform(template: TemplateConfig, data: any) {
+    static async applyTemplateTransform(template: Template, data: any) {
         if (!template.dataTransformFiles?.length) {
             return data;
         }

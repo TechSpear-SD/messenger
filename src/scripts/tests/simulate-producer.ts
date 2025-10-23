@@ -1,5 +1,5 @@
 import { QueueMessage } from '../../core/entities/queue-message';
-import { QueueProducer } from '../../core/queues/queue-producer';
+import { BullMQProducer } from '../../core/queues/queue-producer';
 
 async function main() {
     const data: QueueMessage = {
@@ -12,7 +12,9 @@ async function main() {
         },
         to: ['recipient@example.com'],
     };
-    QueueProducer.enqueue(data);
+    await BullMQProducer.enqueue(data, 'redis://localhost:6379', 'messenger');
+
+    console.log('Message enqueued successfully');
 }
 
 main().catch((err) => {

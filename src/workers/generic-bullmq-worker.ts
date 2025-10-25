@@ -1,47 +1,31 @@
 import { Worker as BullWorker } from 'bullmq';
 import IORedis from 'ioredis';
-import { getRedisConnection } from '../core/queues/redis-connection';
 import { BaseWorker } from './base-worker';
 import pinoLogger from '../logger';
 import { WorkerConfig } from '@prisma/client';
-import { QueueService } from '../core/services/queue.service';
 import { ScenarioService } from '../core/services/scenario.service';
-import z from 'zod';
 import { QueueMessage } from '../core/entities/queue-message';
+import { RedisManager } from '../core/queues/redis-connection';
+import z from 'zod';
 
-export const BullWorkerOptionsSchema = z.object({ redisUrl: z.url() });
+export const BullWorkerOptionsSchema = z.object({
+    topic: z.string().min(3).max(100),
+});
 export type BullWorkerOptions = z.infer<typeof BullWorkerOptionsSchema>;
 
 export class GenericBullWorker extends BaseWorker<BullWorkerOptions> {
     readonly id: string = 'generic-bull-worker';
-    readonly workerConfig: WorkerConfig;
-    protected readonly optionsSchema = BullWorkerOptionsSchema;
-
     private connection?: IORedis;
     private worker?: BullWorker;
-    private queueTopic?: string;
 
     constructor(workerConfig: WorkerConfig) {
-        super();
-        this.workerConfig = workerConfig;
+        super(workerConfig, BullWorkerOptionsSchema);
     }
 
     protected async handleConnect(): Promise<void> {
-        const queueConfig = await QueueService.getByQueueId(
+        this.connection = await RedisManager.getInstance().getConnection(
             this.workerConfig.queueId,
         );
-
-        if (!queueConfig) {
-            throw new Error(
-                `Queue with ID ${this.workerConfig.queueId} not found`,
-            );
-        }
-
-        this.validateQueueOptions(queueConfig);
-
-        const { redisUrl } = queueConfig.options;
-        this.queueTopic = queueConfig.topic;
-        this.connection = getRedisConnection(redisUrl);
 
         await new Promise<void>((resolve) => {
             if (this.connection!.status === 'ready') {
@@ -77,11 +61,12 @@ export class GenericBullWorker extends BaseWorker<BullWorkerOptions> {
     }
 
     protected async handleSubscribe(): Promise<void> {
-        if (this.worker || !this.connection || !this.queueTopic) return;
+        if (this.worker || !this.connection)
+            throw new Error('Worker already initialized or missing connection');
 
         pinoLogger.info(
             this.workerConfig,
-            `[GenericBullWorker] Initializing BullMQ worker for queue: ${this.queueTopic}`,
+            `[GenericBullWorker] Initializing BullMQ worker for queue: ${this.workerConfig.queueId}`,
         );
 
         const connectionOptions = {
@@ -93,7 +78,7 @@ export class GenericBullWorker extends BaseWorker<BullWorkerOptions> {
         };
 
         this.worker = new BullWorker(
-            this.queueTopic,
+            this.workerConfig.options.topic,
             async (job) => await this.handleMessage(job.data),
             {
                 connection: connectionOptions,

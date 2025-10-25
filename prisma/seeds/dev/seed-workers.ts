@@ -9,7 +9,7 @@ export async function seedWorkers(prisma: PrismaClient) {
             workerId: 'bull-worker',
             workerImplId: 'generic-bull-worker',
             queueId: 'messenger-queue',
-            options: {},
+            options: { topic: process.env.QUEUE_TOPIC || 'messenger' },
         },
     });
     console.log('✅ Worker configurations seeded');

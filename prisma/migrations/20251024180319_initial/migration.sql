@@ -2,9 +2,6 @@
 CREATE TYPE "SupportedChannel" AS ENUM ('email', 'sms', 'push', 'webhook');
 
 -- CreateEnum
-CREATE TYPE "QueueType" AS ENUM ('bullmq');
-
--- CreateEnum
 CREATE TYPE "MessageStatus" AS ENUM ('queued', 'processing', 'sent', 'delivered', 'failed', 'expired', 'cancelled');
 
 -- CreateEnum
@@ -20,8 +17,6 @@ CREATE TYPE "Priority" AS ENUM ('low', 'normal', 'high');
 CREATE TABLE "QueueConfig" (
     "id" SERIAL NOT NULL,
     "queueId" TEXT NOT NULL,
-    "topic" TEXT NOT NULL,
-    "type" "QueueType" NOT NULL,
     "description" TEXT,
     "options" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

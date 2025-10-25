@@ -5,23 +5,29 @@ import { getContext, runWithContext } from '../core/context';
 import pinoLogger from '../logger';
 import crypto from 'crypto';
 import { WorkerConfig } from '@prisma/client';
-import { QueueConfig } from '@prisma/client';
-import { BaseQueueOptions } from '../config/types';
+import { BaseWorkerOptions } from '../config/types';
 import { ZodSchema } from 'zod';
 
-export type TypedQueueConfig<T extends BaseQueueOptions = BaseQueueOptions> =
-    Omit<QueueConfig, 'options'> & { options: T };
+export type TypedWorkerConfig<T extends BaseWorkerOptions = BaseWorkerOptions> =
+    Omit<WorkerConfig, 'options'> & { options: T };
 
 export abstract class BaseWorker<
-    TOptions extends BaseQueueOptions = BaseQueueOptions,
+    TOptions extends BaseWorkerOptions = BaseWorkerOptions,
 > {
     abstract id: string;
-    abstract workerConfig: WorkerConfig;
+    protected workerConfig: TypedWorkerConfig<TOptions>;
+    private readonly optionsSchema?: ZodSchema<TOptions>;
 
-    /**
-     * Every worker must define a Zod schema to validate the queue options it requires.
-     */
-    protected abstract readonly optionsSchema: ZodSchema<TOptions>;
+    constructor(
+        workerConfig: WorkerConfig,
+        optionsSchema?: ZodSchema<TOptions>,
+    ) {
+        if (optionsSchema) {
+            this.optionsSchema = optionsSchema;
+            this.validateWorkerOptions(workerConfig);
+        }
+        this.workerConfig = workerConfig as TypedWorkerConfig<TOptions>;
+    }
 
     async handleMessage(message: QueueMessage): Promise<void> {
         const start = Date.now();
@@ -94,12 +100,18 @@ export abstract class BaseWorker<
         return typeof msg?.applicationId === 'string' && Array.isArray(msg?.to);
     }
 
-    protected validateQueueOptions(
-        config: QueueConfig,
-    ): asserts config is TypedQueueConfig<TOptions> {
+    protected validateWorkerOptions(
+        config: WorkerConfig,
+    ): asserts config is TypedWorkerConfig<TOptions> {
         if (!config.options) {
             throw new Error(
-                `[${this.constructor.name}] queueConfig.options missing`,
+                `[${this.constructor.name}] workerConfig.options missing`,
+            );
+        }
+
+        if (!this.optionsSchema) {
+            throw new Error(
+                `[${this.constructor.name}] workerConfig.optionsSchema missing. Cannot validate options.`,
             );
         }
 
@@ -110,11 +122,10 @@ export abstract class BaseWorker<
                 .map((i) => `${i.path.join('.')}: ${i.message}`)
                 .join(', ');
             throw new Error(
-                `[${this.constructor.name}] Invalid queueConfig.options: ${issues}`,
+                `[${this.constructor.name}] Invalid workerConfig.options: ${issues}`,
             );
         }
 
-        // On remplace les options validées par la version typée
         (config as any).options = parsed.data;
     }
 }

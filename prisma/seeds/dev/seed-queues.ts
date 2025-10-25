@@ -1,4 +1,4 @@
-import { PrismaClient, QueueType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 export async function seedQueues(prisma: PrismaClient) {
     console.log('Seeding queue configurations...');
@@ -7,8 +7,6 @@ export async function seedQueues(prisma: PrismaClient) {
         update: {},
         create: {
             queueId: 'messenger-queue',
-            topic: process.env.QUEUE_TOPIC || 'messenger',
-            type: QueueType.bullmq,
             options: {
                 redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
             },

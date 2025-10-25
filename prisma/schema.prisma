@@ -14,10 +14,6 @@ enum SupportedChannel {
   webhook
 }
 
-enum QueueType {
-  bullmq
-}
-
 enum MessageStatus {
   queued
   processing
@@ -49,10 +45,8 @@ enum Priority {
 }
 
 model QueueConfig {
-  id      Int       @id @default(autoincrement())
-  queueId String    @unique
-  topic   String
-  type    QueueType
+  id      Int    @id @default(autoincrement())
+  queueId String @unique
 
   description String?
   options     Json?

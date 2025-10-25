@@ -34,6 +34,15 @@ export function runWithContext<T>(
     return asyncLocalStorage.run(context, fn);
 }
 
+export function getContextNoLogger(): Omit<AppContext, 'logger'> {
+    const store = asyncLocalStorage.getStore();
+    if (!store) {
+        return { correlationId: 'unknown' };
+    }
+    const { logger, ...rest } = store;
+    return rest;
+}
+
 export function getContext(): AppContext {
     const store = asyncLocalStorage.getStore();
     if (!store) {

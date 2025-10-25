@@ -1,5 +1,6 @@
 import { bus } from './core/bus';
 import { LoggerPlugin } from './core/plugins/logger-plugin';
+import { MetricsPlugin } from './core/plugins/metrics-plugin';
 import { PluginManager } from './core/plugins/plugin-manager';
 import { ProviderService } from './core/services/provider.service';
 import { WorkerService } from './core/services/worker.service';
@@ -23,6 +24,7 @@ export class MessengerApp {
 
     private registerPlugins() {
         this.pluginManager.register(LoggerPlugin);
+        this.pluginManager.register(MetricsPlugin);
     }
 
     async init() {

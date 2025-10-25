@@ -8,6 +8,7 @@ export interface ProviderChannelResult {
     channel: SupportedChannel;
     success: boolean;
     providerMessageId?: string;
+    durationMs?: number;
     error?: string;
 }
 
@@ -38,6 +39,7 @@ export abstract class AbstractProvider {
             providerId: this.id,
             payload: message,
         });
+        const startTime = Date.now();
 
         const invalidChannels = message.channels.filter(
             (c) => !this.supportedChannels.includes(c),
@@ -72,6 +74,7 @@ export abstract class AbstractProvider {
                     success: true,
                     providerMessageId:
                         providerMessageId || `unknown-${Date.now()}`,
+                    durationMs: Date.now() - startTime,
                 };
 
                 results.push(result);

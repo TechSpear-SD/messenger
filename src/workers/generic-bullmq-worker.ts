@@ -30,7 +30,7 @@ export class GenericBullWorker extends BaseWorker<BullWorkerOptions> {
         await new Promise<void>((resolve) => {
             if (this.connection!.status === 'ready') {
                 pinoLogger.info(
-                    `[${this.workerConfig.workerId}] Redis already ready`,
+                    `[${this.workerConfig.workerConfigId}] Redis already ready`,
                 );
                 resolve();
                 return;
@@ -38,7 +38,7 @@ export class GenericBullWorker extends BaseWorker<BullWorkerOptions> {
 
             this.connection!.once('ready', () => {
                 pinoLogger.info(
-                    `[${this.workerConfig.workerId}] Redis connection ready`,
+                    `[${this.workerConfig.workerConfigId}] Redis connection ready`,
                 );
                 resolve();
             });
@@ -47,7 +47,7 @@ export class GenericBullWorker extends BaseWorker<BullWorkerOptions> {
         this.connection.on('end', async () => {
             pinoLogger.warn(
                 this.workerConfig,
-                `[${this.workerConfig.workerId}] Redis connection lost`,
+                `[${this.workerConfig.workerConfigId}] Redis connection lost`,
             );
             await this.teardownWorker();
         });
@@ -55,7 +55,7 @@ export class GenericBullWorker extends BaseWorker<BullWorkerOptions> {
         this.connection.on('error', (err) => {
             pinoLogger.error(
                 err,
-                `[${this.workerConfig.workerId}] Redis error`,
+                `[${this.workerConfig.workerConfigId}] Redis error`,
             );
         });
     }

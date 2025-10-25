@@ -13,6 +13,21 @@ CREATE TYPE "DeliveryBackoff" AS ENUM ('fixed', 'linear', 'exponential');
 -- CreateEnum
 CREATE TYPE "Priority" AS ENUM ('low', 'normal', 'high');
 
+-- CreateEnum
+CREATE TYPE "MetricUnit" AS ENUM ('ms', 'count', 'percent', 'bytes');
+
+-- CreateEnum
+CREATE TYPE "MetricType" AS ENUM ('counter', 'gauge', 'timer', 'error');
+
+-- CreateEnum
+CREATE TYPE "MetricSource" AS ENUM ('worker', 'scenario', 'template', 'provider', 'system');
+
+-- CreateEnum
+CREATE TYPE "MetricSeverity" AS ENUM ('info', 'warning', 'error');
+
+-- CreateEnum
+CREATE TYPE "MetricCategory" AS ENUM ('performance', 'system', 'business');
+
 -- CreateTable
 CREATE TABLE "QueueConfig" (
     "id" SERIAL NOT NULL,
@@ -26,9 +41,20 @@ CREATE TABLE "QueueConfig" (
 );
 
 -- CreateTable
-CREATE TABLE "WorkerConfig" (
+CREATE TABLE "Worker" (
     "id" SERIAL NOT NULL,
     "workerId" TEXT NOT NULL,
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Worker_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WorkerConfig" (
+    "id" SERIAL NOT NULL,
+    "workerConfigId" TEXT NOT NULL,
     "workerImplId" TEXT NOT NULL,
     "queueId" TEXT NOT NULL,
     "description" TEXT,
@@ -135,7 +161,16 @@ CREATE TABLE "Metric" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "value" DOUBLE PRECISION NOT NULL,
+    "unit" "MetricUnit",
+    "type" "MetricType",
+    "source" "MetricSource",
+    "severity" "MetricSeverity",
+    "category" "MetricCategory",
     "tags" JSONB,
+    "templateId" TEXT,
+    "providerId" TEXT,
+    "workerId" TEXT,
+    "scenarioId" TEXT,
     "recordedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Metric_pkey" PRIMARY KEY ("id")
@@ -145,7 +180,10 @@ CREATE TABLE "Metric" (
 CREATE UNIQUE INDEX "QueueConfig_queueId_key" ON "QueueConfig"("queueId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "WorkerConfig_workerId_key" ON "WorkerConfig"("workerId");
+CREATE UNIQUE INDEX "Worker_workerId_key" ON "Worker"("workerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WorkerConfig_workerConfigId_key" ON "WorkerConfig"("workerConfigId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Provider_providerId_key" ON "Provider"("providerId");
@@ -176,6 +214,18 @@ CREATE INDEX "EventLog_messageId_idx" ON "EventLog"("messageId");
 
 -- CreateIndex
 CREATE INDEX "Metric_name_recordedAt_idx" ON "Metric"("name", "recordedAt");
+
+-- CreateIndex
+CREATE INDEX "Metric_source_idx" ON "Metric"("source");
+
+-- CreateIndex
+CREATE INDEX "Metric_category_idx" ON "Metric"("category");
+
+-- CreateIndex
+CREATE INDEX "Metric_severity_idx" ON "Metric"("severity");
+
+-- AddForeignKey
+ALTER TABLE "WorkerConfig" ADD CONSTRAINT "WorkerConfig_workerImplId_fkey" FOREIGN KEY ("workerImplId") REFERENCES "Worker"("workerId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WorkerConfig" ADD CONSTRAINT "WorkerConfig_queueId_fkey" FOREIGN KEY ("queueId") REFERENCES "QueueConfig"("queueId") ON DELETE CASCADE ON UPDATE CASCADE;

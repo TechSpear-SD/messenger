@@ -15,7 +15,7 @@ export class WorkerFactory {
         const found = workers.find((p) => p.id === config.workerImplId);
 
         if (!found) {
-            throw new Error(`Unknown worker: ${config.workerId}`);
+            throw new Error(`Unknown worker: ${config.workerConfigId}`);
         }
 
         return found;

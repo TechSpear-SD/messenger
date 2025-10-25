@@ -1,3 +1,4 @@
+import { ProviderChannelResult } from '../../providers/email/provider.interface';
 import { EventNames } from './event-names';
 
 export type EventPayloads = {
@@ -16,7 +17,11 @@ export type EventPayloads = {
     };
 
     [EventNames.ScenarioBeforeExecute]: { scenarioId: string; data: any };
-    [EventNames.ScenarioAfterExecute]: { scenarioId: string; result: any };
+    [EventNames.ScenarioAfterExecute]: {
+        scenarioId: string;
+        durationMs: number;
+        result: any;
+    };
 
     [EventNames.TemplateBeforeExecute]: { templateId: string; data: any };
     [EventNames.TemplateAfterExecute]: { templateId: string; result: any };
@@ -24,12 +29,14 @@ export type EventPayloads = {
     [EventNames.TemplateAfterTransform]: {
         templateId: string;
         transformedData: any;
+        durationMs: number;
     };
     [EventNames.TemplateError]: { templateId: string; error: Error };
     [EventNames.TemplateBeforeRender]: { templateId: string; context: any };
     [EventNames.TemplateAfterRender]: {
         templateId: string;
         rendered: { subject: string; body: string };
+        durationMs: number;
         context: any;
     };
     [EventNames.TemplateRenderError]: { templateId: string; error: Error };
@@ -37,7 +44,10 @@ export type EventPayloads = {
     [EventNames.ProviderSendStart]: { providerId: string; payload: any };
     [EventNames.ProviderSendEnd]: { providerId: string; results: any[] };
     [EventNames.ProviderBeforeSend]: { providerId: string; payload: any };
-    [EventNames.ProviderAfterSend]: { providerId: string; response: any };
+    [EventNames.ProviderAfterSend]: {
+        providerId: string;
+        response: ProviderChannelResult;
+    };
     [EventNames.ProviderError]: { providerId: string; error: Error };
 
     [EventNames.SystemError]: { error: Error };

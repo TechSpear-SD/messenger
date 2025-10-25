@@ -42,7 +42,7 @@ export abstract class BaseWorker<
         }
 
         bus.emit(EventNames.WorkerMessageReceived, {
-            workerId: this.workerConfig.workerId,
+            workerId: this.workerConfig.workerConfigId,
             workerClass: this.workerConfig.workerImplId,
             message,
         });

@@ -76,12 +76,14 @@ export class TemplateService {
             templateId: template.templateId,
             data,
         });
+        const startTime = Date.now();
 
         const transformed = await this.applyTemplateTransform(template, data);
 
         bus.emit(EventNames.TemplateAfterTransform, {
             templateId: template.templateId,
             transformedData: transformed,
+            durationMs: Date.now() - startTime,
         });
 
         return transformed;
@@ -96,6 +98,7 @@ export class TemplateService {
             templateId: template.templateId,
             context: ctx,
         });
+        const startTime = Date.now();
 
         const rendered = await TemplateRenderer.render(template.path, data);
 
@@ -106,6 +109,7 @@ export class TemplateService {
             templateId: template.templateId,
             rendered: { subject, body },
             context: ctx,
+            durationMs: Date.now() - startTime,
         });
 
         return { subject, body };

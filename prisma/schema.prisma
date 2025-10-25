@@ -56,15 +56,27 @@ model QueueConfig {
   updatedAt DateTime @updatedAt
 }
 
+model Worker {
+  id       Int    @id @default(autoincrement())
+  workerId String @unique
+
+  description String?
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  WorkerConfig WorkerConfig[]
+}
+
 model WorkerConfig {
-  id           Int         @id @default(autoincrement())
-  workerId     String      @unique
-  workerImplId String
-  queueId      String
-  queue        QueueConfig @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
-  description  String?
-  options      Json?
-  concurrency  Int?
+  id             Int         @id @default(autoincrement())
+  workerConfigId String      @unique
+  workerImplId   String
+  worker         Worker      @relation(fields: [workerImplId], references: [workerId], onDelete: Cascade)
+  queueId        String
+  queue          QueueConfig @relation(fields: [queueId], references: [queueId], onDelete: Cascade)
+  description    String?
+  options        Json?
+  concurrency    Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -248,12 +260,60 @@ model EventLog {
   @@index([messageId])
 }
 
+enum MetricUnit {
+  ms
+  count
+  percent
+  bytes
+}
+
+enum MetricType {
+  counter
+  gauge
+  timer
+  error
+}
+
+enum MetricSource {
+  worker
+  scenario
+  template
+  provider
+  system
+}
+
+enum MetricSeverity {
+  info
+  warning
+  error
+}
+
+enum MetricCategory {
+  performance
+  system
+  business
+  delivery
+  error
+}
+
 model Metric {
-  id         String   @id @default(uuid())
+  id         String          @id @default(uuid())
   name       String
   value      Float
+  unit       MetricUnit?
+  type       MetricType?
+  source     MetricSource?
+  severity   MetricSeverity?
+  category   MetricCategory?
   tags       Json?
-  recordedAt DateTime @default(now())
+  templateId String?
+  providerId String?
+  workerId   String?
+  scenarioId String?
+  recordedAt DateTime        @default(now())
 
   @@index([name, recordedAt])
+  @@index([source])
+  @@index([category])
+  @@index([severity])
 }

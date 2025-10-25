@@ -12,7 +12,7 @@ async function main() {
         },
         to: ['recipient@example.com'],
     };
-    await BullMQProducer.enqueue(data, 'redis://localhost:6379', 'messenger');
+    await BullMQProducer.enqueue(data, 'messenger-queue', 'msg');
 
     console.log('Message enqueued successfully');
 }

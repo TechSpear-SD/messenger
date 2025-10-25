@@ -23,13 +23,13 @@ export class WorkerService {
             await instance.connect();
             await instance.subscribe();
 
-            this.workers.set(config.workerId, instance);
+            this.workers.set(config.workerConfigId, instance);
         }
     }
 
-    static getCachedWorkerInstance(workerId: string): BaseWorker {
-        const provider = this.workers.get(workerId);
-        if (!provider) throw new Error(`Provider ${workerId} not found`);
+    static getCachedWorkerInstance(workerConfigId: string): BaseWorker {
+        const provider = this.workers.get(workerConfigId);
+        if (!provider) throw new Error(`Provider ${workerConfigId} not found`);
         return provider;
     }
 

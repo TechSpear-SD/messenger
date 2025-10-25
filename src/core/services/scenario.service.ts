@@ -32,6 +32,7 @@ export class ScenarioService {
             scenarioId: message.scenarioId,
             data: message,
         });
+        const startTime = Date.now();
 
         contextLogger.info('Executing scenario for incoming message', {
             appId: message.applicationId,
@@ -72,6 +73,7 @@ export class ScenarioService {
         bus.emit(EventNames.ScenarioAfterExecute, {
             scenarioId: message.scenarioId,
             result: message,
+            durationMs: Date.now() - startTime,
         });
     }
 }

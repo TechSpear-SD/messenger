@@ -1,41 +1,60 @@
 import IORedis from 'ioredis';
-import pinoLogger from '../../logger';
+import { queueService } from '../../api/services/queue.service';
+import { QueueService } from '../services/queue.service';
+import z from 'zod';
+import { BaseQueueOptions } from '../../config';
+import { QueueConfig } from '@prisma/client';
 
-let connection: IORedis | null = null;
+export type TypedQueueConfig<T extends BaseQueueOptions = BaseQueueOptions> =
+    Omit<QueueConfig, 'options'> & { options: T };
 
-export function getRedisConnection(
-    redisUrl: string,
-    delayMs: number = 1000,
-): IORedis {
-    if (!connection) {
-        let retries = 0;
-        connection = new IORedis(redisUrl, {
-            maxRetriesPerRequest: null,
-            enableReadyCheck: false,
-            retryStrategy(times) {
-                retries++;
-                const delay = Math.min(times * delayMs, 5000);
-                pinoLogger.warn(
-                    `Redis reconnect attempt ${retries} (waiting ${delay}ms)`,
-                );
-                return delay;
-            },
-        });
+export const RedisQueueOptionsSchema = z.object({ redisUrl: z.url() });
+export type RedisQueueOptions = z.infer<typeof RedisQueueOptionsSchema>;
+
+export class RedisManager {
+    private static instance: RedisManager;
+    private redisConnections: Map<string, IORedis>;
+
+    private constructor() {
+        this.redisConnections = new Map();
     }
-    return connection;
-}
 
-export function getNewRedisConnection(redisUrl: string): IORedis {
-    return new IORedis(redisUrl, {
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-    });
-}
+    static getInstance(): RedisManager {
+        if (!RedisManager.instance) {
+            RedisManager.instance = new RedisManager();
+        }
+        return RedisManager.instance;
+    }
 
-export async function closeRedisConnection() {
-    if (connection) {
-        await connection.quit();
-        pinoLogger.info(`Redis connection closed`);
-        connection = null;
+    async getConnection(queueId: string): Promise<IORedis> {
+        const queue = await queueService.getByQueueId(queueId);
+
+        if (!queue) {
+            throw new Error(`Queue with ID ${queueId} not found`);
+        }
+
+        QueueService.validateQueueOptions<RedisQueueOptions>(
+            queue,
+            RedisQueueOptionsSchema,
+        );
+
+        const { redisUrl } = queue.options;
+
+        if (!this.redisConnections.has(queueId)) {
+            const connection = new IORedis(redisUrl, {
+                maxRetriesPerRequest: null,
+                enableReadyCheck: false,
+            });
+            this.redisConnections.set(queueId, connection);
+        }
+        return this.redisConnections.get(queueId)!;
+    }
+
+    closeConnection(queueId: string): void {
+        const connection = this.redisConnections.get(queueId);
+        if (connection) {
+            connection.quit();
+            this.redisConnections.delete(queueId);
+        }
     }
 }
